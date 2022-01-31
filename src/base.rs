@@ -95,6 +95,68 @@ fn random_name() -> String {
 }
 // 50e6ed5a ends here
 
+// [[file:../remote.note::769262a8][769262a8]]
+use crossbeam_channel::{unbounded, Receiver, Sender};
+
+/// Represents a remote node for computation
+#[derive(Debug, Clone)]
+pub struct Node {
+    name: String,
+}
+
+impl Node {
+    /// Return the name of remote node
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+}
+
+impl<T: Into<String>> From<T> for Node {
+    fn from(node: T) -> Self {
+        let name = node.into();
+        assert!(!name.is_empty(), "node name cannot be empty!");
+        Self { name }
+    }
+}
+
+/// Represents a list of remote nodes allocated for computation
+#[derive(Clone)]
+pub struct Nodes {
+    rx: Receiver<Node>,
+    tx: Sender<Node>,
+}
+
+impl Nodes {
+    /// Construct `Nodes` from a list of nodes.
+    pub fn new<T: Into<Node>>(nodes: impl IntoIterator<Item = T>) -> Self {
+        let (tx, rx) = unbounded();
+        let nodes = nodes.into_iter().collect_vec();
+        let n = nodes.len();
+        info!("We have {n} nodes in totoal for computation.");
+        for node in nodes {
+            tx.send(node.into()).unwrap();
+        }
+        Self { rx, tx }
+    }
+
+    /// Borrow one node from `Nodes`
+    pub fn borrow_node(&self) -> Result<Node> {
+        let node = self.rx.recv()?;
+        let name = &node.name;
+        info!("client borrowed one node: {name:?}");
+        Ok(node)
+    }
+
+    /// Return one `node` to `Nodes`
+    pub fn return_node(&self, node: Node) -> Result<()> {
+        let name = &node.name;
+        info!("client returned node {name:?}");
+        self.tx.send(node)?;
+        Ok(())
+    }
+}
+// 769262a8 ends here
+
 // [[file:../remote.note::e19bce71][e19bce71]]
 use std::path::{Path, PathBuf};
 
