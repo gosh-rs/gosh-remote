@@ -34,8 +34,9 @@ fn wait_file(f: &std::path::Path, timeout: usize) -> Result<()> {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct Job {
+    // FIXME: remove pub
     /// The content of running script
-    script: String,
+    pub(crate) script: String,
 
     /// A unique random name
     name: String,
@@ -99,7 +100,7 @@ fn random_name() -> String {
 use crossbeam_channel::{unbounded, Receiver, Sender};
 
 /// Represents a remote node for computation
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Node {
     name: String,
 }

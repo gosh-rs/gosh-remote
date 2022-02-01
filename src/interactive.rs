@@ -11,8 +11,7 @@ use tokio::sync::oneshot;
 
 // [[file:../remote.note::e899191b][e899191b]]
 #[derive(Debug)]
-// cmd + working_dir + done?
-struct Interaction(String, String, oneshot::Sender<InteractionOutput>);
+struct Interaction(Job, oneshot::Sender<InteractionOutput>);
 
 /// The message sent from client for controlling child process
 #[derive(Debug, Clone)]
@@ -20,7 +19,7 @@ enum Control {
     Quit,
     Pause,
     Resume,
-    AddNode(String),
+    AddNode(Node),
 }
 
 type InteractionOutput = String;
@@ -67,16 +66,16 @@ mod taskclient {
     use super::*;
 
     impl TaskClient {
-        pub async fn interact(&mut self, cmd: &str, wrk_dir: &str) -> Result<String> {
+        pub async fn interact(&mut self, job: Job) -> Result<String> {
             // FIXME: refactor
             let (tx_resp, rx_resp) = oneshot::channel();
-            self.tx_int.send(Interaction(cmd.into(), wrk_dir.into(), tx_resp)).await?;
+            self.tx_int.send(Interaction(job, tx_resp)).await?;
             let out = rx_resp.await?;
             Ok(out)
         }
 
         /// Add one remote node into list for computation
-        pub async fn add_node(&self, node: String) -> Result<()> {
+        pub async fn add_node(&self, node: Node) -> Result<()> {
             trace!("send add_node ctl msg");
             self.tx_ctl.send(Control::AddNode(node)).await?;
             Ok(())
@@ -93,17 +92,16 @@ pub struct TaskServer {
     rx_ctl: Option<RxControl>,
 }
 
-type Jobs = (String, String, oneshot::Sender<String>);
+type Jobs = (Job, oneshot::Sender<String>);
 type RxJobs = spmc::Receiver<Jobs>;
 type TxJobs = spmc::Sender<Jobs>;
 async fn handle_client_interaction(jobs: RxJobs, node: &Node) -> Result<()> {
-    let (cmd, wrk_dir, tx_resp) = jobs.recv()?;
-    let job = create_job_for_remote_session(&cmd, &wrk_dir, &node);
+    let (job, tx_resp) = jobs.recv()?;
     let name = job.name();
     info!("Start computing job {name} ...");
     // FIXME: remote or local submission, make it selectable
-    // let mut comput = job.submit()?;
-    let mut comput = job.submit_remote(node.name())?;
+    let mut comput = job.submit()?;
+    // let mut comput = job.submit_remote(node.name())?;
     // if computation failed, we should tell the client to exit
     match comput.wait_for_output().await {
         Ok(out) => {
@@ -161,8 +159,8 @@ mod taskserver {
                     }
                     Some(int) = rx_int.recv() => {
                         log_dbg!();
-                        let Interaction(cmd, wrk_dir, tx_resp) = int;
-                        tx_jobs.send((cmd, wrk_dir, tx_resp))?;
+                        let Interaction(job, tx_resp) = int;
+                        tx_jobs.send((job, tx_resp))?;
                     }
                     Some(ctl) = rx_ctl.recv() => {
                         log_dbg!();

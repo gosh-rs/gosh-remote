@@ -1,6 +1,6 @@
 // [[file:../remote.note::b8081727][b8081727]]
 use super::*;
-use base::Job;
+use base::{Job, Node};
 
 use warp::Filter;
 // b8081727 ends here
@@ -41,6 +41,11 @@ enum ComputationResult {
 // [[file:../remote.note::07c5146c][07c5146c]]
 mod handlers {
     use super::*;
+
+    /// Handle request for adding a new node into `Nodes`
+    pub async fn add_node(node: Node) -> Result<impl warp::Reply, warp::Rejection> {
+        Ok(warp::reply::json(&1))
+    }
 
     /// POST /jobs with JSON body
     pub async fn create_job(job: Job) -> Result<impl warp::Reply, warp::Rejection> {
@@ -83,41 +88,32 @@ mod handlers {
 mod filters {
     use super::*;
 
-    fn json_body() -> impl Filter<Extract = (Job,), Error = warp::Rejection> + Clone {
-        warp::body::content_length_limit(1024 * 3200).and(warp::body::json())
-    }
-
     /// POST /jobs with JSON body
     async fn job_run() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
         warp::path!("jobs")
             .and(warp::post())
-            .and(json_body())
+            .and(warp::body::json())
             .and_then(handlers::create_job)
     }
 
-    pub async fn api() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    pub async fn jobs() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
         job_run().await
     }
 }
 // a5b61fa9 ends here
 
 // [[file:../remote.note::e324852d][e324852d]]
+use client::Client;
+
 /// Submit job remotely using REST api service
 pub struct RemoteComputation {
     job: Job,
-    client: reqwest::blocking::Client,
-    service_uri: String,
+    client: Client,
 }
 
 impl RemoteComputation {
     pub async fn wait_for_output(&self) -> Result<String> {
-        let resp = self
-            .client
-            .post(&self.service_uri)
-            .json(&self.job)
-            .send()?
-            .text()
-            .context("client requests to create job")?;
+        let resp = self.client.post("jobs", &self.job)?;
         Ok(resp)
     }
 }
@@ -125,15 +121,8 @@ impl RemoteComputation {
 impl Job {
     /// Remote submission using RESTful service
     pub fn submit_remote(self, server_address: &str) -> Result<RemoteComputation> {
-        // NOTE: the default request timeout is 30 seconds. Here we disable
-        // timeout using reqwest builder.
-        let client = reqwest::blocking::Client::builder().timeout(None).build()?;
-        let uri = format!("http://{}/jobs/", server_address);
-        let comput = RemoteComputation {
-            job: self,
-            service_uri: uri,
-            client,
-        };
+        let client = Client::new(server_address);
+        let comput = RemoteComputation { job: self, client };
 
         Ok(comput)
     }
@@ -144,12 +133,18 @@ impl Job {
 impl server::Server {
     pub async fn serve_as_worker(addr: &str) {
         let server = Self::new(addr);
-        server.serve().await;
+        let api = filters::jobs().await;
+        server.serve_api(api).await;
     }
 
-    async fn serve(&self) {
+    /// Serve warp api service
+    pub async fn serve_api<F>(&self, api: F)
+    where
+        F: Filter + Clone + Send + Sync + 'static,
+        F::Extract: warp::Reply,
+    {
         let (tx, rx) = tokio::sync::oneshot::channel();
-        let services = warp::serve(filters::api().await);
+        let services = warp::serve(api.with(warp::log("gosh-remote")));
         let (addr, server) = services.bind_with_graceful_shutdown(self.address, async {
             rx.await.ok();
         });
@@ -200,27 +195,3 @@ pub mod cli {
     }
 }
 // e91e1d87 ends here
-
-// [[file:../remote.note::27b117b8][27b117b8]]
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use warp::test::request;
-
-    #[tokio::test]
-    async fn test_warp_post() {
-        let api = filters::api().await;
-        let resp = request().method("POST").path("/jobs").json(&job_pwd()).reply(&api).await;
-        assert!(resp.status().is_success());
-        let x: ComputationResult = serde_json::from_slice(&resp.body()).unwrap();
-        assert_eq!(x, ComputationResult::JobCompleted("/tmp\n".into()));
-    }
-
-    fn job_pwd() -> Job {
-        let job = Job::new("cd /tmp; pwd");
-        let x = serde_json::to_string(&job);
-        dbg!(x);
-        job
-    }
-}
-// 27b117b8 ends here

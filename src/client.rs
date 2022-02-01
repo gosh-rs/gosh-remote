@@ -5,37 +5,41 @@ use std::io::{Read, Write};
 use tokio::net::UnixStream;
 // 92f27790 ends here
 
-// [[file:../remote.note::*base][base:1]]
+// [[file:../remote.note::99dad0b0][99dad0b0]]
 /// Client of remote execution
 pub struct Client {
-    address: String,
+    client: reqwest::blocking::Client,
+    service_uri: String,
 }
-// base:1 ends here
+
+impl Client {
+    /// The connection address like "localhost:12345"
+    pub fn new(address: &str) -> Self {
+        // NOTE: the default request timeout is 30 seconds. Here we disable
+        // timeout using reqwest builder.
+        let client = reqwest::blocking::Client::builder()
+            .timeout(None)
+            .build()
+            .expect("reqwest client");
+        let service_uri = format!("http://{}", address);
+        Self { client, service_uri }
+    }
+}
+// 99dad0b0 ends here
 
 // [[file:../remote.note::e5fdc097][e5fdc097]]
 impl Client {
-    /// Make connection to unix domain socket server
-    pub async fn connect(server_address: &str) -> Result<Self> {
-        debug!("Connect to remote server: {server_address:?}");
-        todo!();
-    }
+    pub fn post(&self, end_point: &str, data: impl serde::Serialize) -> Result<String> {
+        let uri = format!("{}/{end_point}", self.service_uri);
+        let resp = self
+            .client
+            .post(&uri)
+            .json(&data)
+            .send()?
+            .text()
+            .context("client requests to create job")?;
 
-    /// Request server to run cmd_line in working_dir and wait until complete.
-    pub async fn interact(&mut self, cmd_line: &str, working_dir: &str) -> Result<String> {
-        debug!("Request server to run {cmd_line:?} in {working_dir:?} ...");
-        // let op = codec::ServerOp::Command((cmd_line.into(), working_dir.into()));
-        // self.send_op(op).await?;
-
-        // trace!("receiving output");
-        // let txt = codec::recv_msg_decode(&mut self.stream).await?;
-        // trace!("got {} bytes", txt.len());
-
-        todo!();
-    }
-
-    /// Request server to add remote node into server list for remote computation.
-    pub async fn add_node(&mut self, node: String) -> Result<()> {
-        todo!();
+        Ok(resp)
     }
 }
 // e5fdc097 ends here

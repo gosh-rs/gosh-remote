@@ -8,36 +8,18 @@ pub use gut::prelude::*;
 
 // [[file:../remote.note::5f9971ad][5f9971ad]]
 #[derive(Parser)]
-struct Cli {
-    #[clap(flatten)]
-    verbose: Verbosity,
-
-    #[clap(subcommand)]
-    command: Commands,
-}
-
-#[derive(Subcommand)]
-enum Commands {
-    Client {
-        #[clap(flatten)]
-        client: ClientCli,
-    },
-    Server {
-        #[clap(flatten)]
-        server: ServerCli,
-    },
+enum Cli {
+    Client(ClientCli),
+    Server(ServerCli),
 }
 
 #[tokio::main]
 pub async fn remote_enter_main() -> Result<()> {
-    let args = Cli::from_args();
-    args.verbose.setup_logger();
-
-    match args.command {
-        Commands::Client { client } => {
+    match Cli::from_args() {
+        Cli::Client(client) => {
             client.enter_main().await?;
         }
-        Commands::Server { server } => {
+        Cli::Server(server) => {
             debug!("Run VASP for interactive calculation ...");
             server.enter_main().await?;
         }
@@ -111,6 +93,9 @@ use crate::server::Server;
 /// A helper program to run VASP calculation in remote node
 #[derive(Parser, Debug)]
 struct ServerCli {
+    #[structopt(flatten)]
+    verbose: gut::cli::Verbosity,
+
     /// Bind on the address for providing remote execution service
     #[clap(default_value = "localhost:3030")]
     address: String,
@@ -127,6 +112,8 @@ struct ServerCli {
 impl ServerCli {
     async fn enter_main(self) -> Result<()> {
         let args = ServerCli::parse();
+        args.verbose.setup_logger();
+
         if args.as_scheduler {
             Server::serve_as_scheduler(&self.address).await;
         } else {
