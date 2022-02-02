@@ -5,6 +5,33 @@ use base::{Job, Node};
 use server::Server;
 // ec61676b ends here
 
+// [[file:../remote.note::568e244d][568e244d]]
+use client::Client;
+use std::path::Path;
+
+impl Client {
+    /// Request server to run `cmd` in directory `wrk_dir`.
+    pub fn run_cmd(&self, cmd: &str, wrk_dir: &Path) -> Result<String> {
+        let wrk_dir = wrk_dir.shell_escape_lossy();
+        #[rustfmt::skip]
+        let script = format!("#! /usr/bin/env bash
+cd {wrk_dir}
+{cmd}
+");
+        let job = Job::new(script);
+        let o = self.post("jobs", job)?;
+
+        Ok(o)
+    }
+
+    /// Request server to add a new node for remote computation.
+    pub fn add_node(&self, node: impl Into<Node>) -> Result<()> {
+        self.post("nodes", node.into())?;
+        Ok(())
+    }
+}
+// 568e244d ends here
+
 // [[file:../remote.note::9f3b28d3][9f3b28d3]]
 mod filters {
     use super::*;
@@ -13,7 +40,8 @@ mod filters {
 
     /// Handle request for adding a new node into `Nodes`
     async fn add_node(node: Node, task: TaskClient) -> Result<impl warp::Reply, warp::Rejection> {
-        task.add_node(node).await;
+        // FIXME: remove unwrap
+        task.add_node(node).await.unwrap();
         Ok(warp::reply::json(&()))
     }
 

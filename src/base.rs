@@ -70,11 +70,17 @@ impl Job {
     ///
     /// * script: the content of the script for running the job.
     ///
-    pub fn new(script: &str) -> Self {
+    pub fn new(script: impl Into<String>) -> Self {
         Self {
             script: script.into(),
             ..Default::default()
         }
+    }
+
+    /// Set job name.
+    pub fn with_name(mut self, name: &str) -> Self {
+        self.name = name.into();
+        self
     }
 
     /// Return the job name
@@ -97,63 +103,66 @@ fn random_name() -> String {
 // 50e6ed5a ends here
 
 // [[file:../remote.note::769262a8][769262a8]]
-use crossbeam_channel::{unbounded, Receiver, Sender};
+mod node {
+    use super::*;
+    use crossbeam_channel::{unbounded, Receiver, Sender};
 
-/// Represents a remote node for computation
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct Node {
-    name: String,
-}
-
-impl Node {
-    /// Return the name of remote node
-    pub fn name(&self) -> &str {
-        &self.name
+    /// Represents a remote node for computation
+    #[derive(Debug, Clone, Deserialize, Serialize)]
+    pub struct Node {
+        name: String,
     }
-}
 
-impl<T: Into<String>> From<T> for Node {
-    fn from(node: T) -> Self {
-        let name = node.into();
-        assert!(!name.is_empty(), "node name cannot be empty!");
-        Self { name }
-    }
-}
-
-/// Represents a list of remote nodes allocated for computation
-#[derive(Clone)]
-pub struct Nodes {
-    rx: Receiver<Node>,
-    tx: Sender<Node>,
-}
-
-impl Nodes {
-    /// Construct `Nodes` from a list of nodes.
-    pub fn new<T: Into<Node>>(nodes: impl IntoIterator<Item = T>) -> Self {
-        let (tx, rx) = unbounded();
-        let nodes = nodes.into_iter().collect_vec();
-        let n = nodes.len();
-        info!("We have {n} nodes in totoal for computation.");
-        for node in nodes {
-            tx.send(node.into()).unwrap();
+    impl Node {
+        /// Return the name of remote node
+        pub fn name(&self) -> &str {
+            &self.name
         }
-        Self { rx, tx }
     }
 
-    /// Borrow one node from `Nodes`
-    pub fn borrow_node(&self) -> Result<Node> {
-        let node = self.rx.recv()?;
-        let name = &node.name;
-        info!("client borrowed one node: {name:?}");
-        Ok(node)
+    impl<T: Into<String>> From<T> for Node {
+        fn from(node: T) -> Self {
+            let name = node.into();
+            assert!(!name.is_empty(), "node name cannot be empty!");
+            Self { name }
+        }
     }
 
-    /// Return one `node` to `Nodes`
-    pub fn return_node(&self, node: Node) -> Result<()> {
-        let name = &node.name;
-        info!("client returned node {name:?}");
-        self.tx.send(node)?;
-        Ok(())
+    /// Represents a list of remote nodes allocated for computation
+    #[derive(Clone)]
+    pub struct Nodes {
+        rx: Receiver<Node>,
+        tx: Sender<Node>,
+    }
+
+    impl Nodes {
+        /// Construct `Nodes` from a list of nodes.
+        pub fn new<T: Into<Node>>(nodes: impl IntoIterator<Item = T>) -> Self {
+            let (tx, rx) = unbounded();
+            let nodes = nodes.into_iter().collect_vec();
+            let n = nodes.len();
+            info!("We have {n} nodes in totoal for computation.");
+            for node in nodes {
+                tx.send(node.into()).unwrap();
+            }
+            Self { rx, tx }
+        }
+
+        /// Borrow one node from `Nodes`
+        pub fn borrow_node(&self) -> Result<Node> {
+            let node = self.rx.recv()?;
+            let name = &node.name;
+            info!("client borrowed one node: {name:?}");
+            Ok(node)
+        }
+
+        /// Return one `node` to `Nodes`
+        pub fn return_node(&self, node: Node) -> Result<()> {
+            let name = &node.name;
+            info!("client returned node {name:?}");
+            self.tx.send(node)?;
+            Ok(())
+        }
     }
 }
 // 769262a8 ends here
@@ -164,8 +173,7 @@ use std::path::{Path, PathBuf};
 use gosh_runner::prelude::SpawnSessionExt;
 use gosh_runner::process::Session;
 
-use tempfile::{tempdir, tempdir_in, TempDir};
-use tokio::io::AsyncWriteExt;
+use tempfile::TempDir;
 // e19bce71 ends here
 
 // [[file:../remote.note::955c926a][955c926a]]
@@ -225,8 +233,6 @@ impl Computation {
 
     /// Construct `Computation` of user inputted `Job`.
     fn try_run(job: Job) -> Result<Self> {
-        use std::fs::File;
-
         // create working directory in scratch space.
         let wdir = tempfile::TempDir::new_in(".").expect("temp dir");
         let session = Self {
@@ -330,3 +336,7 @@ impl Computation {
     }
 }
 // 34c67980 ends here
+
+// [[file:../remote.note::4a28f1b7][4a28f1b7]]
+pub use node::{Node, Nodes};
+// 4a28f1b7 ends here

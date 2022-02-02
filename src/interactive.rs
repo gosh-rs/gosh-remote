@@ -13,44 +13,18 @@ use tokio::sync::oneshot;
 #[derive(Debug)]
 struct Interaction(Job, oneshot::Sender<InteractionOutput>);
 
-/// The message sent from client for controlling child process
+/// The message sent from client for controlling running job
 #[derive(Debug, Clone)]
 enum Control {
-    Quit,
-    Pause,
-    Resume,
     AddNode(Node),
 }
 
 type InteractionOutput = String;
-type RxInteractionOutput = tokio::sync::watch::Receiver<InteractionOutput>;
-type TxInteractionOutput = tokio::sync::watch::Sender<InteractionOutput>;
 type RxInteraction = tokio::sync::mpsc::Receiver<Interaction>;
 type TxInteraction = tokio::sync::mpsc::Sender<Interaction>;
 type RxControl = tokio::sync::mpsc::Receiver<Control>;
 type TxControl = tokio::sync::mpsc::Sender<Control>;
 // e899191b ends here
-
-// [[file:../remote.note::de5d8bd5][de5d8bd5]]
-fn shell_script_for_job(cmd: &str, wrk_dir: &std::path::Path, node: &Node) -> String {
-    let node_name = node.name();
-    let wrk_dir = wrk_dir.shell_escape_lossy();
-
-    format!(
-        "#! /usr/bin/env bash
-cd {wrk_dir}
-{cmd}
-"
-    )
-}
-
-fn create_job_for_remote_session(cmd: &str, wrk_dir: &str, node: &Node) -> Job {
-    debug!("run cmd {cmd:?} on remote node: {node:?}");
-    let script = shell_script_for_job(cmd, wrk_dir.as_ref(), node);
-
-    Job::new(&script)
-}
-// de5d8bd5 ends here
 
 // [[file:../remote.note::d88217da][d88217da]]
 #[derive(Clone)]
@@ -62,7 +36,7 @@ pub struct TaskClient {
     tx_int: TxInteraction,
 }
 
-mod taskclient {
+mod client {
     use super::*;
 
     impl TaskClient {
@@ -92,35 +66,34 @@ pub struct TaskServer {
     rx_ctl: Option<RxControl>,
 }
 
-type Jobs = (Job, oneshot::Sender<String>);
-type RxJobs = spmc::Receiver<Jobs>;
-type TxJobs = spmc::Sender<Jobs>;
-async fn handle_client_interaction(jobs: RxJobs, node: &Node) -> Result<()> {
-    let (job, tx_resp) = jobs.recv()?;
-    let name = job.name();
-    info!("Start computing job {name} ...");
-    // FIXME: remote or local submission, make it selectable
-    let mut comput = job.submit()?;
-    // let mut comput = job.submit_remote(node.name())?;
-    // if computation failed, we should tell the client to exit
-    match comput.wait_for_output().await {
-        Ok(out) => {
-            info!("Job {name} completed, sending stdout to the client ...");
-            if let Err(_) = tx_resp.send(out) {
-                error!("the client has been dropped");
+mod server {
+    use super::*;
+
+    type Jobs = (Job, oneshot::Sender<String>);
+    type RxJobs = spmc::Receiver<Jobs>;
+    async fn handle_client_interaction(jobs: RxJobs, node: &Node) -> Result<()> {
+        let (job, tx_resp) = jobs.recv()?;
+        let name = job.name();
+        info!("Start computing job {name} ...");
+        // FIXME: remote or local submission, make it selectable
+        let mut comput = job.submit()?;
+        // let mut comput = job.submit_remote(node)?;
+        // if computation failed, we should tell the client to exit
+        match comput.wait_for_output().await {
+            Ok(out) => {
+                info!("Job {name} completed, sending stdout to the client ...");
+                if let Err(_) = tx_resp.send(out) {
+                    error!("the client has been dropped");
+                }
+            }
+            Err(err) => {
+                error!("Job {name:?} failed with error: {err:?}");
+                tx_resp.send("Job failure".into()).ok();
             }
         }
-        Err(err) => {
-            error!("Job {name:?} failed with error: {err:?}");
-            tx_resp.send("Job failure".into()).ok();
-        }
+
+        Ok(())
     }
-
-    Ok(())
-}
-
-mod taskserver {
-    use super::*;
 
     impl TaskServer {
         /// Run child process in new session, and serve requests for interactions.
@@ -130,7 +103,7 @@ mod taskserver {
 
             let nodes = Nodes::new(nodes);
             let (mut tx_jobs, rx_jobs) = spmc::channel();
-            for i in 0.. {
+            for _ in 0.. {
                 // make sure run in parallel
                 let join_handler = {
                     let jobs = rx_jobs.clone();
@@ -168,7 +141,7 @@ mod taskserver {
                             Control::AddNode(node) => {
                                 info!("client asked to add a new remote node: {node:?}");
                                 let nodes = nodes.clone();
-                                nodes.return_node(node.into());
+                                nodes.return_node(node.into())?;
                             }
                             _ => {
                                 log_dbg!();

@@ -15,7 +15,7 @@ enum Cli {
 
 #[tokio::main]
 pub async fn remote_enter_main() -> Result<()> {
-    match Cli::from_args() {
+    match Cli::parse() {
         Cli::Client(client) => {
             client.enter_main().await?;
         }
@@ -36,6 +36,9 @@ pub async fn remote_enter_main() -> Result<()> {
 /// run in background
 #[derive(StructOpt)]
 struct ClientCli {
+    #[structopt(flatten)]
+    verbose: gut::cli::Verbosity,
+
     /// The remote execution service address, e.g. localhost:3030
     #[structopt(long, default_value = "localhost:3030")]
     address: String,
@@ -46,10 +49,7 @@ struct ClientCli {
 
 #[derive(Subcommand)]
 enum ClientAction {
-    Run {
-        #[clap(flatten)]
-        run: ClientRun,
-    },
+    Run(ClientRun),
     /// Request server to add a new node for remote computation.
     AddNode {
         /// The node to be added into node list for remote computation.
@@ -70,17 +70,19 @@ struct ClientRun {
 
 impl ClientCli {
     async fn enter_main(self) -> Result<()> {
-        // let mut stream = Client::connect(&self.address).await?;
-        // match self.action {
-        //     ClientAction::Run { run } => {
-        //         let wrk_dir = run.wrk_dir.canonicalize()?;
-        //         let wrk_dir = wrk_dir.to_string_lossy();
-        //         stream.interact_with_remote_session(&run.cmd, &wrk_dir).await?;
-        //     }
-        //     ClientAction::AddNode { node } => {
-        //         stream.add_node(node).await?;
-        //     }
-        // }
+        use crate::client::Client;
+
+        let client = Client::new(&self.address);
+        match self.action {
+            ClientAction::Run(run) => {
+                let wrk_dir = run.wrk_dir.canonicalize()?;
+                let o = client.run_cmd(&run.cmd, &wrk_dir)?;
+                println!("{o}");
+            }
+            ClientAction::AddNode { node } => {
+                client.add_node(&node)?;
+            }
+        }
 
         Ok(())
     }
@@ -114,10 +116,13 @@ impl ServerCli {
         let args = ServerCli::parse();
         args.verbose.setup_logger();
 
+        let address = &self.address;
         if args.as_scheduler {
-            Server::serve_as_scheduler(&self.address).await;
+            println!("Start scheduler serivce at {address:?}");
+            Server::serve_as_scheduler(address).await;
         } else {
-            Server::serve_as_worker(&self.address).await;
+            println!("Start worker serivce at {address:?}");
+            Server::serve_as_worker(address).await;
         }
 
         Ok(())

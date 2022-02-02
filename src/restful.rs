@@ -42,11 +42,6 @@ enum ComputationResult {
 mod handlers {
     use super::*;
 
-    /// Handle request for adding a new node into `Nodes`
-    pub async fn add_node(node: Node) -> Result<impl warp::Reply, warp::Rejection> {
-        Ok(warp::reply::json(&1))
-    }
-
     /// POST /jobs with JSON body
     pub async fn create_job(job: Job) -> Result<impl warp::Reply, warp::Rejection> {
         if !server_busy() {
@@ -120,8 +115,8 @@ impl RemoteComputation {
 
 impl Job {
     /// Remote submission using RESTful service
-    pub fn submit_remote(self, server_address: &str) -> Result<RemoteComputation> {
-        let client = Client::new(server_address);
+    pub fn submit_remote(self, node: Node) -> Result<RemoteComputation> {
+        let client = Client::new(node.name());
         let comput = RemoteComputation { job: self, client };
 
         Ok(comput)
@@ -131,6 +126,7 @@ impl Job {
 
 // [[file:../remote.note::62b9ac23][62b9ac23]]
 impl server::Server {
+    /// Serve as a worker running on local node.
     pub async fn serve_as_worker(addr: &str) {
         let server = Self::new(addr);
         let api = filters::jobs().await;
@@ -163,35 +159,3 @@ impl server::Server {
     }
 }
 // 62b9ac23 ends here
-
-// [[file:../remote.note::e91e1d87][e91e1d87]]
-pub mod cli {
-    use super::*;
-    use gut::cli::*;
-
-    /// Application server for remote calculations.
-    #[derive(StructOpt, Debug)]
-    struct Cli {
-        #[structopt(flatten)]
-        verbose: gut::cli::Verbosity,
-
-        /// Set application server address for binding.
-        ///
-        /// * Example
-        ///
-        /// - app-server localhost:3030 (default)
-        /// - app-server tower:7070
-        #[structopt(name = "ADDRESS", default_value = "localhost:3030")]
-        address: String,
-    }
-
-    #[tokio::main]
-    pub async fn server_enter_main() -> Result<()> {
-        let args = Cli::from_args();
-        args.verbose.setup_logger();
-        server::Server::serve_as_worker(&args.address).await;
-
-        Ok(())
-    }
-}
-// e91e1d87 ends here

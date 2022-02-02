@@ -1,8 +1,6 @@
 // [[file:../remote.note::92f27790][92f27790]]
 use super::*;
 use gut::fs::*;
-use std::io::{Read, Write};
-use tokio::net::UnixStream;
 // 92f27790 ends here
 
 // [[file:../remote.note::99dad0b0][99dad0b0]]
@@ -29,7 +27,7 @@ impl Client {
 
 // [[file:../remote.note::e5fdc097][e5fdc097]]
 impl Client {
-    pub fn post(&self, end_point: &str, data: impl serde::Serialize) -> Result<String> {
+    pub(crate) fn post(&self, end_point: &str, data: impl serde::Serialize) -> Result<String> {
         let uri = format!("{}/{end_point}", self.service_uri);
         let resp = self
             .client
