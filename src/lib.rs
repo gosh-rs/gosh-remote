@@ -1,6 +1,6 @@
-// [[file:../remote.note::*header][header:1]]
-//! Remote Execution and Embarrassingly Parallel Computation for gosh
-// header:1 ends here
+// [[file:../remote.note::dba9de5e][dba9de5e]]
+//! Distributed parallel computing over multiple nodes.
+// dba9de5e ends here
 
 // [[file:../remote.note::963f5eb8][963f5eb8]]
 use gosh_core::*;
@@ -11,7 +11,7 @@ use gut::prelude::*;
 mod base;
 mod client;
 mod interactive;
-mod restful;
+mod worker;
 mod scheduler;
 mod server;
 
@@ -32,6 +32,6 @@ pub mod docs {
 
     export_doc!(base);
     export_doc!(interactive);
-    export_doc!(restful);
+    export_doc!(worker);
 }
 // 56d334b5 ends here

@@ -7,6 +7,8 @@ pub use gut::prelude::*;
 // 3a532d42 ends here
 
 // [[file:../remote.note::5f9971ad][5f9971ad]]
+/// A helper program for running program concurrently distributed over multiple
+/// remote nodes
 #[derive(Parser)]
 struct Cli {
     #[structopt(flatten)]
@@ -44,13 +46,13 @@ pub async fn remote_enter_main() -> Result<()> {
 // [[file:../remote.note::512e88e7][512e88e7]]
 // use crate::remote::{Client, Server};
 
-/// A client of a unix domain socket server for interacting with the program
-/// run in background
+/// The client side for running program concurrently distributed over multiple
+/// remote nodes
 #[derive(StructOpt)]
 struct ClientCli {
     /// The remote execution service address, e.g. localhost:3030
-    #[structopt(long, default_value = "localhost:3030")]
-    address: String,
+    #[structopt(long = "scheduler")]
+    scheduler_address: String,
 
     #[clap(subcommand)]
     action: ClientAction,
@@ -81,7 +83,7 @@ impl ClientCli {
     async fn enter_main(self) -> Result<()> {
         use crate::client::Client;
 
-        let client = Client::connect(&self.address);
+        let client = Client::connect(&self.scheduler_address);
         match self.action {
             ClientAction::Run(run) => {
                 let wrk_dir = run.wrk_dir.canonicalize()?;
@@ -101,31 +103,36 @@ impl ClientCli {
 // [[file:../remote.note::674c2404][674c2404]]
 use crate::server::Server;
 
-/// A helper program to run VASP calculation in remote node
+#[derive(Debug, Clone, ArgEnum)]
+enum ServerMode {
+    AsScheduler,
+    AsWorker,
+}
+
+/// The server side for running program concurrently distributed over multiple remote nodes
 #[derive(Parser, Debug)]
 struct ServerCli {
     /// Bind on the address for providing remote execution service
-    #[clap(default_value = "localhost:3030")]
+    #[clap(long)]
     address: String,
 
-    /// Start server as job scheduler
-    #[clap(long, conflicts_with = "as-worker")]
-    as_scheduler: bool,
-
-    /// Start server as a worker for remote computation
-    #[clap(long, conflicts_with = "as-scheduler")]
-    as_worker: bool,
+    /// The server mode to start.
+    #[clap(arg_enum)]
+    mode: ServerMode,
 }
 
 impl ServerCli {
     async fn enter_main(self) -> Result<()> {
         let address = &self.address;
-        if self.as_scheduler {
-            println!("Start scheduler serivce at {address:?}");
-            Server::serve_as_scheduler(address).await;
-        } else {
-            println!("Start worker serivce at {address:?}");
-            Server::serve_as_worker(address).await;
+        match self.mode {
+            ServerMode::AsScheduler => {
+                println!("Start scheduler serivce at {address:?}");
+                Server::serve_as_scheduler(address).await;
+            }
+            ServerMode::AsWorker => {
+                println!("Start worker serivce at {address:?}");
+                Server::serve_as_worker(address).await;
+            }
         }
 
         Ok(())

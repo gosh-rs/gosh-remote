@@ -6,35 +6,10 @@ use warp::Filter;
 // b8081727 ends here
 
 // [[file:../remote.note::08048436][08048436]]
-use std::sync::atomic;
-
-static SERVER_BUSY: atomic::AtomicBool = atomic::AtomicBool::new(false);
-
-fn server_busy() -> bool {
-    SERVER_BUSY.load(atomic::Ordering::SeqCst)
-}
-
-fn server_mark_busy() {
-    if !server_busy() {
-        SERVER_BUSY.store(true, atomic::Ordering::SeqCst);
-    } else {
-        panic!("server is already busy")
-    }
-}
-
-fn server_mark_free() {
-    if server_busy() {
-        SERVER_BUSY.store(false, atomic::Ordering::SeqCst);
-    } else {
-        panic!("server is already free")
-    }
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 enum ComputationResult {
     JobCompleted(String),
     JobFailed(String),
-    NotStarted(String),
 }
 // 08048436 ends here
 
@@ -42,38 +17,26 @@ enum ComputationResult {
 mod handlers {
     use super::*;
 
-    /// POST /jobs with JSON body
+    /// Run `job` locally and return stdout on success.
     pub async fn create_job(job: Job) -> Result<impl warp::Reply, warp::Rejection> {
-        if !server_busy() {
-            server_mark_busy();
-            let comput = job.submit();
-            match comput {
-                Ok(mut comput) => match comput.wait_for_output().await {
-                    Ok(out) => {
-                        server_mark_free();
-                        let ret = ComputationResult::JobCompleted(out);
-                        Ok(warp::reply::json(&ret))
-                    }
-                    Err(err) => {
-                        server_mark_free();
-                        let msg = format!("{err:?}");
-                        let ret = ComputationResult::JobFailed(msg);
-                        Ok(warp::reply::json(&ret))
-                    }
-                },
+        match job.submit() {
+            Ok(mut comput) => match comput.wait_for_output().await {
+                Ok(out) => {
+                    let ret = ComputationResult::JobCompleted(out);
+                    Ok(warp::reply::json(&ret))
+                }
                 Err(err) => {
-                    server_mark_free();
-                    let msg = format!("failed to create job: {err:?}");
-                    error!("{msg}");
+                    let msg = format!("{err:?}");
                     let ret = ComputationResult::JobFailed(msg);
                     Ok(warp::reply::json(&ret))
                 }
+            },
+            Err(err) => {
+                let msg = format!("failed to create job: {err:?}");
+                error!("{msg}");
+                let ret = ComputationResult::JobFailed(msg);
+                Ok(warp::reply::json(&ret))
             }
-        } else {
-            server_mark_free();
-            let msg = format!("Server is busy");
-            let ret = ComputationResult::NotStarted(msg);
-            Ok(warp::reply::json(&ret))
         }
     }
 }
@@ -84,15 +47,11 @@ mod filters {
     use super::*;
 
     /// POST /jobs with JSON body
-    async fn job_run() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    pub async fn jobs() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
         warp::path!("jobs")
             .and(warp::post())
             .and(warp::body::json())
             .and_then(handlers::create_job)
-    }
-
-    pub async fn jobs() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-        job_run().await
     }
 }
 // a5b61fa9 ends here
@@ -108,7 +67,7 @@ pub struct RemoteComputation {
 
 impl RemoteComputation {
     pub async fn wait_for_output(&self) -> Result<String> {
-        info!("wait output for job {:?}", self.job);
+        debug!("wait output for job {:?}", self.job);
         let resp = self.client.post("jobs", &self.job)?;
         Ok(resp)
     }
@@ -135,7 +94,7 @@ impl server::Server {
     }
 
     /// Serve warp api service
-    pub async fn serve_api<F>(&self, api: F)
+    async fn serve_api<F>(&self, api: F)
     where
         F: Filter + Clone + Send + Sync + 'static,
         F::Extract: warp::Reply,
