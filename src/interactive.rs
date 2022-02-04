@@ -74,10 +74,9 @@ mod server {
     async fn handle_client_interaction(jobs: RxJobs, node: &Node) -> Result<()> {
         let (job, tx_resp) = jobs.recv()?;
         let name = job.name();
-        info!("Start computing job {name} ...");
-        // FIXME: remote or local submission, make it selectable
-        let mut comput = job.submit()?;
-        // let mut comput = job.submit_remote(node)?;
+        info!("Request remote node {node:?} to compute job {name} ...");
+        // FIXME: potentially deadlock
+        let mut comput = job.submit_remote(node)?;
         // if computation failed, we should tell the client to exit
         match comput.wait_for_output().await {
             Ok(out) => {

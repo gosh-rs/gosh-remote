@@ -8,18 +8,30 @@ pub use gut::prelude::*;
 
 // [[file:../remote.note::5f9971ad][5f9971ad]]
 #[derive(Parser)]
-enum Cli {
+struct Cli {
+    #[structopt(flatten)]
+    verbose: gut::cli::Verbosity,
+
+    #[clap(subcommand)]
+    command: RemoteCommand,
+}
+
+#[derive(Subcommand)]
+enum RemoteCommand {
     Client(ClientCli),
     Server(ServerCli),
 }
 
 #[tokio::main]
 pub async fn remote_enter_main() -> Result<()> {
-    match Cli::parse() {
-        Cli::Client(client) => {
+    let args = Cli::parse();
+    args.verbose.setup_logger();
+
+    match args.command {
+        RemoteCommand::Client(client) => {
             client.enter_main().await?;
         }
-        Cli::Server(server) => {
+        RemoteCommand::Server(server) => {
             debug!("Run VASP for interactive calculation ...");
             server.enter_main().await?;
         }
@@ -36,9 +48,6 @@ pub async fn remote_enter_main() -> Result<()> {
 /// run in background
 #[derive(StructOpt)]
 struct ClientCli {
-    #[structopt(flatten)]
-    verbose: gut::cli::Verbosity,
-
     /// The remote execution service address, e.g. localhost:3030
     #[structopt(long, default_value = "localhost:3030")]
     address: String,
@@ -72,7 +81,7 @@ impl ClientCli {
     async fn enter_main(self) -> Result<()> {
         use crate::client::Client;
 
-        let client = Client::new(&self.address);
+        let client = Client::connect(&self.address);
         match self.action {
             ClientAction::Run(run) => {
                 let wrk_dir = run.wrk_dir.canonicalize()?;
@@ -95,9 +104,6 @@ use crate::server::Server;
 /// A helper program to run VASP calculation in remote node
 #[derive(Parser, Debug)]
 struct ServerCli {
-    #[structopt(flatten)]
-    verbose: gut::cli::Verbosity,
-
     /// Bind on the address for providing remote execution service
     #[clap(default_value = "localhost:3030")]
     address: String,
@@ -113,11 +119,8 @@ struct ServerCli {
 
 impl ServerCli {
     async fn enter_main(self) -> Result<()> {
-        let args = ServerCli::parse();
-        args.verbose.setup_logger();
-
         let address = &self.address;
-        if args.as_scheduler {
+        if self.as_scheduler {
             println!("Start scheduler serivce at {address:?}");
             Server::serve_as_scheduler(address).await;
         } else {

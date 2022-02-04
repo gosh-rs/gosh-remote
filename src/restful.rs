@@ -108,6 +108,7 @@ pub struct RemoteComputation {
 
 impl RemoteComputation {
     pub async fn wait_for_output(&self) -> Result<String> {
+        info!("wait output for job {:?}", self.job);
         let resp = self.client.post("jobs", &self.job)?;
         Ok(resp)
     }
@@ -115,8 +116,8 @@ impl RemoteComputation {
 
 impl Job {
     /// Remote submission using RESTful service
-    pub fn submit_remote(self, node: Node) -> Result<RemoteComputation> {
-        let client = Client::new(node.name());
+    pub fn submit_remote(self, node: &Node) -> Result<RemoteComputation> {
+        let client = Client::connect(node);
         let comput = RemoteComputation { job: self, client };
 
         Ok(comput)

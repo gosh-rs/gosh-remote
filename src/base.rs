@@ -128,6 +128,13 @@ mod node {
         }
     }
 
+    impl std::fmt::Display for Node {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            let name = &self.name;
+            write!(f, "{name}")
+        }
+    }
+
     /// Represents a list of remote nodes allocated for computation
     #[derive(Clone)]
     pub struct Nodes {
@@ -340,3 +347,11 @@ impl Computation {
 // [[file:../remote.note::4a28f1b7][4a28f1b7]]
 pub use node::{Node, Nodes};
 // 4a28f1b7 ends here
+
+// [[file:../remote.note::f725ca9b][f725ca9b]]
+#[test]
+fn test_node() {
+    let localhost: Node = "localhost".into();
+    assert_eq!(localhost.name(), "localhost");
+}
+// f725ca9b ends here

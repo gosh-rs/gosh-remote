@@ -4,6 +4,8 @@ use gut::fs::*;
 // 92f27790 ends here
 
 // [[file:../remote.note::99dad0b0][99dad0b0]]
+use base::Node;
+
 /// Client of remote execution
 pub struct Client {
     client: reqwest::blocking::Client,
@@ -12,14 +14,14 @@ pub struct Client {
 
 impl Client {
     /// The connection address like "localhost:12345"
-    pub fn new(address: &str) -> Self {
+    pub fn connect(node: impl std::fmt::Display) -> Self {
         // NOTE: the default request timeout is 30 seconds. Here we disable
         // timeout using reqwest builder.
         let client = reqwest::blocking::Client::builder()
             .timeout(None)
             .build()
             .expect("reqwest client");
-        let service_uri = format!("http://{}", address);
+        let service_uri = format!("http://{}", node);
         Self { client, service_uri }
     }
 }
