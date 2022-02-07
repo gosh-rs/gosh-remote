@@ -11,12 +11,82 @@ use gut::prelude::*;
 mod base;
 mod client;
 mod interactive;
-mod worker;
+mod mpi;
 mod scheduler;
 mod server;
+mod worker;
 
 pub mod cli;
 // b21b77b4 ends here
+
+// [[file:../remote.note::5c33a18a][5c33a18a]]
+/// Return system host name
+fn hostname() -> String {
+    let mut buf = [0u8; 512];
+    nix::unistd::gethostname(&mut buf)
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string()
+}
+
+/// Test if `address` available for socket binding
+fn address_available(address: &str) -> bool {
+    match std::net::TcpListener::bind(address) {
+        Ok(_) => true,
+        Err(_) => false,
+    }
+}
+// 5c33a18a ends here
+
+// [[file:../remote.note::9b7911ae][9b7911ae]]
+use fs2::*;
+use std::path::{Path, PathBuf};
+
+#[derive(Debug)]
+struct IdFile {
+    file: std::fs::File,
+    path: PathBuf,
+}
+
+impl IdFile {
+    fn create(path: &Path) -> Result<IdFile> {
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(&path)
+            .context("Could not create ID file")?;
+
+        // https://docs.rs/fs2/0.4.3/fs2/trait.FileExt.html
+        file.try_lock_exclusive()
+            .context("Could not lock ID file; Is the daemon already running?")?;
+
+        Ok(IdFile {
+            file,
+            path: path.to_owned(),
+        })
+    }
+
+    fn write_msg(&mut self, msg: &str) -> Result<()> {
+        writeln!(&mut self.file, "{msg}").context("Could not write ID file")?;
+        self.file.flush().context("Could not flush ID file")
+    }
+
+    /// Create a pidfile for process `pid`
+    pub fn new(path: &Path, msg: &str) -> Result<Self> {
+        let mut pidfile = Self::create(path)?;
+        pidfile.write_msg(msg);
+
+        Ok(pidfile)
+    }
+}
+
+impl Drop for IdFile {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.path);
+    }
+}
+// 9b7911ae ends here
 
 // [[file:../remote.note::56d334b5][56d334b5]]
 #[cfg(feature = "adhoc")]

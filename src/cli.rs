@@ -6,43 +6,6 @@ use gut::fs::*;
 pub use gut::prelude::*;
 // 3a532d42 ends here
 
-// [[file:../remote.note::5f9971ad][5f9971ad]]
-/// A helper program for running program concurrently distributed over multiple
-/// remote nodes
-#[derive(Parser)]
-struct Cli {
-    #[structopt(flatten)]
-    verbose: gut::cli::Verbosity,
-
-    #[clap(subcommand)]
-    command: RemoteCommand,
-}
-
-#[derive(Subcommand)]
-enum RemoteCommand {
-    Client(ClientCli),
-    Server(ServerCli),
-}
-
-#[tokio::main]
-pub async fn remote_enter_main() -> Result<()> {
-    let args = Cli::parse();
-    args.verbose.setup_logger();
-
-    match args.command {
-        RemoteCommand::Client(client) => {
-            client.enter_main().await?;
-        }
-        RemoteCommand::Server(server) => {
-            debug!("Run VASP for interactive calculation ...");
-            server.enter_main().await?;
-        }
-    }
-
-    Ok(())
-}
-// 5f9971ad ends here
-
 // [[file:../remote.note::512e88e7][512e88e7]]
 // use crate::remote::{Client, Server};
 
@@ -131,7 +94,7 @@ impl ServerCli {
             }
             ServerMode::AsWorker => {
                 println!("Start worker serivce at {address:?}");
-                Server::serve_as_worker(address).await;
+                Server::serve_as_worker(address).await?;
             }
         }
 
@@ -139,3 +102,101 @@ impl ServerCli {
     }
 }
 // 674c2404 ends here
+
+// [[file:../remote.note::001e63a1][001e63a1]]
+use base::wait_file;
+
+#[derive(StructOpt)]
+struct MpiCli {}
+
+impl MpiCli {
+    async fn enter_main(&self) -> Result<()> {
+        run_scheduler_or_worker_dwim().await?;
+        Ok(())
+    }
+}
+
+/// Run scheduler or worker according to MPI local rank ID
+async fn run_scheduler_or_worker_dwim() -> Result<()> {
+    const ID_FILE: &str = "gosh-remote-scheduler.tmp";
+
+    let node = hostname();
+    dbg!(&node);
+
+    match mpi::get_local_rank_id() {
+        Some(0) => {
+            info!("run as a scheduler on {node} ...");
+            let address = format!("{node}:3030");
+            let server = ServerCli {
+                address: address.clone(),
+                mode: ServerMode::AsScheduler,
+            };
+            let idfile = IdFile::new(ID_FILE.as_ref(), &address);
+            server.enter_main().await?;
+        }
+        Some(rank) => {
+            info!("run as worker on {node} in rank {rank} ...");
+            let address = format!("{node}:3031");
+            let server = ServerCli {
+                address: address.clone(),
+                mode: ServerMode::AsWorker,
+            };
+            wait_file(ID_FILE.as_ref(), 2.0)?;
+            let o = gut::fs::read_file(ID_FILE)?;
+            let client = crate::client::Client::connect(o.trim());
+            if address_available(&address) {
+                client.add_node(&address)?;
+                server.enter_main().await?;
+            } else {
+                error!("{address} is not available for binding");
+            }
+        }
+        None => {
+            bail!("no relevant MPI env var found!");
+        }
+    };
+
+    Ok(())
+}
+// 001e63a1 ends here
+
+// [[file:../remote.note::5f9971ad][5f9971ad]]
+/// A helper program for running program concurrently distributed over multiple
+/// remote nodes
+#[derive(Parser)]
+struct Cli {
+    #[structopt(flatten)]
+    verbose: gut::cli::Verbosity,
+
+    #[clap(subcommand)]
+    command: RemoteCommand,
+}
+
+#[derive(Subcommand)]
+enum RemoteCommand {
+    Client(ClientCli),
+    Server(ServerCli),
+    Mpi(MpiCli),
+}
+
+#[tokio::main]
+pub async fn remote_enter_main() -> Result<()> {
+    let args = Cli::parse();
+    args.verbose.setup_logger();
+
+    match args.command {
+        RemoteCommand::Client(client) => {
+            client.enter_main().await?;
+        }
+        RemoteCommand::Server(server) => {
+            debug!("Run VASP for interactive calculation ...");
+            server.enter_main().await?;
+        }
+        RemoteCommand::Mpi(mpi) => {
+            mpi.enter_main().await?;
+        }
+    }
+
+    Ok(())
+}
+// 5f9971ad ends here

@@ -10,7 +10,7 @@ use gut::utils::sleep;
 /// # Parameters
 /// * timeout: timeout in seconds
 /// * f: the file to wait for available
-fn wait_file(f: &std::path::Path, timeout: usize) -> Result<()> {
+pub fn wait_file(f: &std::path::Path, timeout: f64) -> Result<()> {
     // wait a moment for socke file ready
     let interval = 0.1;
     let mut t = 0.0;
@@ -22,7 +22,7 @@ fn wait_file(f: &std::path::Path, timeout: usize) -> Result<()> {
         t += interval;
         sleep(interval);
 
-        if t > timeout as f64 {
+        if t > timeout {
             bail!("file {:?} doest exist for {} seconds", f, timeout);
         }
     }
@@ -233,7 +233,7 @@ impl Computation {
     fn create_run_file(&self) -> Result<()> {
         let run_file = &self.run_file();
         gut::fs::write_script_file(run_file, &self.job.script)?;
-        wait_file(&run_file, 2)?;
+        wait_file(&run_file, 2.0)?;
 
         Ok(())
     }

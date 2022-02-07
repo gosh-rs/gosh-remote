@@ -87,23 +87,24 @@ impl Job {
 // [[file:../remote.note::62b9ac23][62b9ac23]]
 impl server::Server {
     /// Serve as a worker running on local node.
-    pub async fn serve_as_worker(addr: &str) {
+    pub async fn serve_as_worker(addr: &str) -> Result<()> {
         let server = Self::new(addr);
         let api = filters::jobs().await;
-        server.serve_api(api).await;
+        server.serve_api(api).await?;
+        Ok(())
     }
 
     /// Serve warp api service
-    async fn serve_api<F>(&self, api: F)
+    async fn serve_api<F>(&self, api: F) -> Result<()>
     where
         F: Filter + Clone + Send + Sync + 'static,
         F::Extract: warp::Reply,
     {
         let (tx, rx) = tokio::sync::oneshot::channel();
         let services = warp::serve(api.with(warp::log("gosh-remote")));
-        let (addr, server) = services.bind_with_graceful_shutdown(self.address, async {
+        let (addr, server) = services.try_bind_with_graceful_shutdown(self.address, async {
             rx.await.ok();
-        });
+        })?;
         println!("listening on {addr:?}");
 
         let ctrl_c = tokio::signal::ctrl_c();
@@ -116,6 +117,8 @@ impl server::Server {
                 eprintln!("user interruption");
             }
         }
+
+        Ok(())
     }
 }
 // 62b9ac23 ends here
