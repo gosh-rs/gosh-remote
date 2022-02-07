@@ -118,10 +118,9 @@ impl MpiCli {
 
 /// Run scheduler or worker according to MPI local rank ID
 async fn run_scheduler_or_worker_dwim() -> Result<()> {
-    const ID_FILE: &str = "gosh-remote-scheduler.tmp";
-
     let node = hostname();
-    dbg!(&node);
+    let lock_file_scheduler = format!("gosh-remote-scheduler-{node}.lock");
+    let lock_file_worker = format!("gosh-remote-worker-{node}.lock");
 
     match mpi::get_local_rank_id() {
         Some(0) => {
@@ -131,7 +130,7 @@ async fn run_scheduler_or_worker_dwim() -> Result<()> {
                 address: address.clone(),
                 mode: ServerMode::AsScheduler,
             };
-            let idfile = IdFile::new(ID_FILE.as_ref(), &address);
+            let lock = LockFile::new(lock_file_scheduler.as_ref(), &address);
             server.enter_main().await?;
         }
         Some(rank) => {
@@ -141,8 +140,8 @@ async fn run_scheduler_or_worker_dwim() -> Result<()> {
                 address: address.clone(),
                 mode: ServerMode::AsWorker,
             };
-            wait_file(ID_FILE.as_ref(), 2.0)?;
-            let o = gut::fs::read_file(ID_FILE)?;
+            wait_file(lock_file_scheduler.as_ref(), 2.0)?;
+            let o = gut::fs::read_file(lock_file_scheduler)?;
             let client = crate::client::Client::connect(o.trim());
             if address_available(&address) {
                 client.add_node(&address)?;

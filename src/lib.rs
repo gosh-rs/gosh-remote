@@ -44,13 +44,13 @@ use fs2::*;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
-struct IdFile {
+struct LockFile {
     file: std::fs::File,
     path: PathBuf,
 }
 
-impl IdFile {
-    fn create(path: &Path) -> Result<IdFile> {
+impl LockFile {
+    fn create(path: &Path) -> Result<LockFile> {
         let file = std::fs::OpenOptions::new()
             .create(true)
             .write(true)
@@ -61,7 +61,7 @@ impl IdFile {
         file.try_lock_exclusive()
             .context("Could not lock ID file; Is the daemon already running?")?;
 
-        Ok(IdFile {
+        Ok(LockFile {
             file,
             path: path.to_owned(),
         })
@@ -81,7 +81,7 @@ impl IdFile {
     }
 }
 
-impl Drop for IdFile {
+impl Drop for LockFile {
     fn drop(&mut self) {
         let _ = std::fs::remove_file(&self.path);
     }
