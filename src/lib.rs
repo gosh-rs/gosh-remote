@@ -34,7 +34,7 @@ fn hostname() -> String {
 fn address_available(address: &str) -> bool {
     match std::net::TcpListener::bind(address) {
         Ok(_) => true,
-        Err(_) => false,
+        Err(e) => false,
     }
 }
 // 5c33a18a ends here

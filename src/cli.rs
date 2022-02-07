@@ -6,6 +6,17 @@ use gut::fs::*;
 pub use gut::prelude::*;
 // 3a532d42 ends here
 
+// [[file:../remote.note::bdfa3d68][bdfa3d68]]
+const GOSH_SCHEDULER_FILE: &str = "gosh-remote-scheduler.lock";
+
+fn read_scheduler_address_from_lock_file(scheduler_address_file: &Path) -> Result<String> {
+    info!("reading scheduler address from file: {scheduler_address_file:?}");
+    base::wait_file(scheduler_address_file, 1.5)?;
+    let o = gut::fs::read_file(scheduler_address_file)?.trim().to_string();
+    Ok(o)
+}
+// bdfa3d68 ends here
+
 // [[file:../remote.note::512e88e7][512e88e7]]
 // use crate::remote::{Client, Server};
 
@@ -14,8 +25,12 @@ pub use gut::prelude::*;
 #[derive(StructOpt)]
 struct ClientCli {
     /// The remote execution service address, e.g. localhost:3030
-    #[structopt(long = "scheduler")]
-    scheduler_address: String,
+    #[structopt(long = "scheduler", conflicts_with = "scheduler-address-file")]
+    scheduler_address: Option<String>,
+
+    /// The scheduler address to be read from file `scheduler_address_file`
+    #[structopt(short = 'w', default_value = GOSH_SCHEDULER_FILE)]
+    scheduler_address_file: PathBuf,
 
     #[clap(subcommand)]
     action: ClientAction,
@@ -45,8 +60,13 @@ struct ClientRun {
 impl ClientCli {
     async fn enter_main(self) -> Result<()> {
         use crate::client::Client;
+        let scheduler_address = if let Some(a) = self.scheduler_address {
+            a
+        } else {
+            read_scheduler_address_from_lock_file(&self.scheduler_address_file)?
+        };
 
-        let client = Client::connect(&self.scheduler_address);
+        let client = Client::connect(&scheduler_address);
         match self.action {
             ClientAction::Run(run) => {
                 let wrk_dir = run.wrk_dir.canonicalize()?;
@@ -104,50 +124,55 @@ impl ServerCli {
 // 674c2404 ends here
 
 // [[file:../remote.note::001e63a1][001e63a1]]
-use base::wait_file;
-
+/// Start scheduler and worker services automatically when run in MPI
+/// environment (to be called with mpirun command)
 #[derive(StructOpt)]
-struct MpiCli {}
+struct MpiCli {
+    /// The scheduler address will be wrote into `address_file`
+    #[structopt(short = 'w', default_value = GOSH_SCHEDULER_FILE)]
+    address_file: PathBuf,
+}
 
 impl MpiCli {
     async fn enter_main(&self) -> Result<()> {
-        run_scheduler_or_worker_dwim().await?;
+        run_scheduler_or_worker_dwim(&self.address_file).await?;
         Ok(())
     }
 }
 
 /// Run scheduler or worker according to MPI local rank ID
-async fn run_scheduler_or_worker_dwim() -> Result<()> {
+async fn run_scheduler_or_worker_dwim(scheduler_address_file: &Path) -> Result<()> {
     let node = hostname();
-    let lock_file_scheduler = format!("gosh-remote-scheduler-{node}.lock");
     let lock_file_worker = format!("gosh-remote-worker-{node}.lock");
 
     match mpi::get_local_rank_id() {
         Some(0) => {
-            info!("run as a scheduler on {node} ...");
+            info!("try run scheduler on {node} in rank 0 ...");
             let address = format!("{node}:3030");
             let server = ServerCli {
                 address: address.clone(),
                 mode: ServerMode::AsScheduler,
             };
-            let lock = LockFile::new(lock_file_scheduler.as_ref(), &address);
+            let lock = LockFile::new(&scheduler_address_file, &address)?;
             server.enter_main().await?;
         }
         Some(rank) => {
-            info!("run as worker on {node} in rank {rank} ...");
+            info!("try run worker on {node} in rank {rank} ...");
             let address = format!("{node}:3031");
-            let server = ServerCli {
-                address: address.clone(),
-                mode: ServerMode::AsWorker,
-            };
-            wait_file(lock_file_scheduler.as_ref(), 2.0)?;
-            let o = gut::fs::read_file(lock_file_scheduler)?;
-            let client = crate::client::Client::connect(o.trim());
-            if address_available(&address) {
+            // use lock file to start only one worker per node
+            if let Ok(_) = LockFile::new(lock_file_worker.as_ref(), &address) {
+                let server = ServerCli {
+                    address: address.clone(),
+                    mode: ServerMode::AsWorker,
+                };
+                let o = read_scheduler_address_from_lock_file(scheduler_address_file)?;
+                let client = crate::client::Client::connect(o);
                 client.add_node(&address)?;
-                server.enter_main().await?;
+                if let Err(e) = server.enter_main().await {
+                    dbg!(e);
+                }
             } else {
-                error!("{address} is not available for binding");
+                info!("worker already started on {node}:{rank}.");
             }
         }
         None => {
@@ -175,6 +200,7 @@ struct Cli {
 enum RemoteCommand {
     Client(ClientCli),
     Server(ServerCli),
+    #[clap(name = "mpi-bootstrap")]
     Mpi(MpiCli),
 }
 
