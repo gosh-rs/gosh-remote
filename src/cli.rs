@@ -140,45 +140,63 @@ impl MpiCli {
     }
 }
 
+fn is_mpi_rank_for_scheduler() -> bool {
+    mpi::get_global_rank_id() == Some(0)
+}
+
+fn is_mpi_rank_for_worker() -> bool {
+    match (mpi::get_global_rank_id(), mpi::get_local_rank_id()) {
+        (Some(m), Some(1)) => {
+            let name = hostname();
+            info!("start worker on global rank {m}, on local rank 1 at node {name}");
+            true
+        }
+        _ => false,
+    }
+}
+
 /// Run scheduler or worker according to MPI local rank ID
 async fn run_scheduler_or_worker_dwim(scheduler_address_file: &Path) -> Result<()> {
     let node = hostname();
     let lock_file_worker = format!("gosh-remote-worker-{node}.lock");
+    match (mpi::get_global_number_of_ranks(), mpi::get_global_number_of_ranks()) {
+        (Some(n), Some(m)) => {
+            debug!("Found {n} global ranks, {m} local ranks on node {node}");
+        }
+        _ => {
+            bail!("no relevant MPI env vars found!")
+        }
+    }
 
-    match mpi::get_local_rank_id() {
-        Some(0) => {
-            info!("try run scheduler on {node} in rank 0 ...");
-            let address = format!("{node}:3030");
+    if is_mpi_rank_for_scheduler() {
+        info!("try run scheduler on {node} in rank 0 ...");
+        let address = format!("{node}:3030");
+        let server = ServerCli {
+            address: address.clone(),
+            mode: ServerMode::AsScheduler,
+        };
+        let lock = LockFile::new(&scheduler_address_file, &address)?;
+        server.enter_main().await?;
+    }
+
+    if is_mpi_rank_for_worker() {
+        let address = format!("{node}:3031");
+        // use lock file to start only one worker per node
+        if let Ok(_) = LockFile::new(lock_file_worker.as_ref(), &address) {
             let server = ServerCli {
                 address: address.clone(),
-                mode: ServerMode::AsScheduler,
+                mode: ServerMode::AsWorker,
             };
-            let lock = LockFile::new(&scheduler_address_file, &address)?;
-            server.enter_main().await?;
-        }
-        Some(rank) => {
-            info!("try run worker on {node} in rank {rank} ...");
-            let address = format!("{node}:3031");
-            // use lock file to start only one worker per node
-            if let Ok(_) = LockFile::new(lock_file_worker.as_ref(), &address) {
-                let server = ServerCli {
-                    address: address.clone(),
-                    mode: ServerMode::AsWorker,
-                };
-                let o = read_scheduler_address_from_lock_file(scheduler_address_file)?;
-                let client = crate::client::Client::connect(o);
-                client.add_node(&address)?;
-                if let Err(e) = server.enter_main().await {
-                    dbg!(e);
-                }
-            } else {
-                info!("worker already started on {node}:{rank}.");
+            let o = read_scheduler_address_from_lock_file(scheduler_address_file)?;
+            let client = crate::client::Client::connect(o);
+            client.add_node(&address)?;
+            if let Err(e) = server.enter_main().await {
+                dbg!(e);
             }
+        } else {
+            info!("worker already started on {node}.");
         }
-        None => {
-            bail!("no relevant MPI env var found!");
-        }
-    };
+    }
 
     Ok(())
 }
