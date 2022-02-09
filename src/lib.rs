@@ -75,7 +75,7 @@ impl LockFile {
     /// Create a pidfile for process `pid`
     pub fn new(path: &Path, msg: &str) -> Result<Self> {
         let mut pidfile = Self::create(path)?;
-        pidfile.write_msg(msg);
+        pidfile.write_msg(msg)?;
 
         Ok(pidfile)
     }

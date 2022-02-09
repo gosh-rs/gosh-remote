@@ -1,8 +1,10 @@
 // [[file:../../remote.note::45c2eed2][45c2eed2]]
 use gosh_remote::cli::*;
 
-fn main() -> Result<()> {
-    remote_enter_main()?;
+#[tokio::main]
+async fn main() -> Result<()> {
+    remote_enter_main().await?;
+    log_dbg!();
 
     Ok(())
 }

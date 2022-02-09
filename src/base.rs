@@ -155,6 +155,11 @@ mod node {
             Self { rx, tx }
         }
 
+        /// Return the number of nodes
+        pub fn len(&self) -> usize {
+            self.rx.len()
+        }
+
         /// Borrow one node from `Nodes`
         pub fn borrow_node(&self) -> Result<Node> {
             let node = self.rx.recv()?;

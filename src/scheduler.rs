@@ -72,36 +72,50 @@ mod filters {
 // 9f3b28d3 ends here
 
 // [[file:../remote.note::63fb876f][63fb876f]]
+use base::Nodes;
+
 impl Server {
     pub async fn serve_as_scheduler(addr: &str) {
+        println!("listening on {addr:?}");
         let (mut task_server, task_client) = interactive::new_interactive_task();
-        let nodes = vec![];
-        let h1 = task_server.run_and_serve(nodes);
+        let nodes: Vec<String> = vec![];
+        // let h1 = task_server.run_and_serve(nodes);
+        let h1 = tokio::spawn(async move {
+            if let Err(e) = task_server.run_and_serve(Nodes::new(nodes)).await {
+                error!("task server: {e:?}");
+            }
+        });
         tokio::pin!(h1);
 
         let server = Self::new(addr);
-        let api = filters::api(task_client);
-        let services = warp::serve(api);
-        let (tx, rx) = tokio::sync::oneshot::channel();
-        let (addr, h2) = services.bind_with_graceful_shutdown(server.address, async {
-            rx.await.ok();
+        let api = filters::api(task_client.clone());
+        let mut h2 = tokio::spawn(async move {
+            warp::serve(api).run(server.address).await;
         });
-        println!("listening on {addr:?}");
         tokio::pin!(h2);
 
-        let ctrl_c = tokio::signal::ctrl_c();
-        tokio::select! {
-            _ = ctrl_c => {
-                info!("User interrupted. Shutting down ...");
-                let _ = tx.send(());
-            },
-            res = &mut h1 => {
-                dbg!();
-            }
-            res = &mut h2 => {
-                dbg!();
+        let h3 = tokio::signal::ctrl_c();
+        tokio::pin!(h3);
+        loop {
+            tokio::select! {
+                res = &mut h1 => {
+                    log_dbg!();
+                }
+                res = &mut h2 => {
+                    log_dbg!();
+                }
+                res = &mut h3 => {
+                    info!("User interrupted. Shutting down ...");
+                    task_client.abort().await;
+                    break;
+                }
             }
         }
+        log_dbg!();
+        h1.abort();
+        log_dbg!();
+        h2.abort();
+        log_dbg!();
     }
 }
 // 63fb876f ends here

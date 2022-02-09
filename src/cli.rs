@@ -111,6 +111,7 @@ impl ServerCli {
             ServerMode::AsScheduler => {
                 println!("Start scheduler serivce at {address:?}");
                 Server::serve_as_scheduler(address).await;
+                log_dbg!();
             }
             ServerMode::AsWorker => {
                 println!("Start worker serivce at {address:?}");
@@ -222,7 +223,6 @@ enum RemoteCommand {
     Mpi(MpiCli),
 }
 
-#[tokio::main]
 pub async fn remote_enter_main() -> Result<()> {
     let args = Cli::parse();
     args.verbose.setup_logger();
@@ -234,11 +234,13 @@ pub async fn remote_enter_main() -> Result<()> {
         RemoteCommand::Server(server) => {
             debug!("Run VASP for interactive calculation ...");
             server.enter_main().await?;
+            log_dbg!();
         }
         RemoteCommand::Mpi(mpi) => {
             mpi.enter_main().await?;
         }
     }
+    log_dbg!();
 
     Ok(())
 }
