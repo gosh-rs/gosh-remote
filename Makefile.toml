@@ -1,5 +1,11 @@
-[tasks.install]
+[tasks.i]
 #command = "env"
-script = '''
+script = '''#! /usr/bin/env bash
+set -xe
 cargo im --root=releases/${CARGO_MAKE_PROJECT_VERSION} --no-track --bins --force
+upx releases/${CARGO_MAKE_PROJECT_VERSION}/bin/*
 '''
+
+[tasks.z]
+dependencies = ["i"]
+script = '''scp releases/${CARGO_MAKE_PROJECT_VERSION}/bin/* rongzhi:bin/ '''

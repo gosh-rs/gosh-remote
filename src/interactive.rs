@@ -135,8 +135,8 @@ mod server {
                     let jobs = rx_jobs.clone();
                     let nodes = nodes.clone();
                     tokio::spawn(async move {
-                        info!("thread {i}: wait for remote node to compute incoming job");
-                        info!("thread {i}: we have {} nodes available for computations");
+                        info!("task thread {i}: wait for remote node to compute incoming job");
+                        info!("task thread {i}: we have {} nodes available for computations");
                         borrow_node_and_compute(nodes, jobs).await;
                         log_dbg!();
                     })
@@ -154,7 +154,6 @@ mod server {
                         tx_jobs.send((job, tx_resp))?;
                     }
                     Some(ctl) = rx_ctl.recv() => {
-                        log_dbg!();
                         match ctl {
                             Control::AddNode(node) => {
                                 info!("client asked to add a new remote node: {node:?}");
@@ -194,7 +193,10 @@ pub fn new_interactive_task() -> (TaskServer, TaskClient) {
         rx_ctl: rx_ctl.into(),
     };
 
-    let client = TaskClient { tx_int, tx_ctl };
+    let client = TaskClient {
+        tx_int,
+        tx_ctl,
+    };
 
     (server, client)
 }

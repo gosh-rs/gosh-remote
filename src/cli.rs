@@ -10,7 +10,7 @@ pub use gut::prelude::*;
 const GOSH_SCHEDULER_FILE: &str = "gosh-remote-scheduler.lock";
 
 fn read_scheduler_address_from_lock_file(scheduler_address_file: &Path) -> Result<String> {
-    info!("reading scheduler address from file: {scheduler_address_file:?}");
+    debug!("reading scheduler address from file: {scheduler_address_file:?}");
     base::wait_file(scheduler_address_file, 1.5)?;
     let o = gut::fs::read_file(scheduler_address_file)?.trim().to_string();
     Ok(o)
@@ -141,36 +141,13 @@ impl MpiCli {
     }
 }
 
-fn is_mpi_rank_for_scheduler() -> bool {
-    mpi::get_global_rank_id() == Some(0)
-}
-
-fn is_mpi_rank_for_worker() -> bool {
-    match (mpi::get_global_rank_id(), mpi::get_local_rank_id()) {
-        (Some(m), Some(1)) => {
-            let name = hostname();
-            info!("start worker on global rank {m}, on local rank 1 at node {name}");
-            true
-        }
-        _ => false,
-    }
-}
-
 /// Run scheduler or worker according to MPI local rank ID
 async fn run_scheduler_or_worker_dwim(scheduler_address_file: &Path) -> Result<()> {
-    let node = hostname();
-    let lock_file_worker = format!("gosh-remote-worker-{node}.lock");
-    match (mpi::get_global_number_of_ranks(), mpi::get_global_number_of_ranks()) {
-        (Some(n), Some(m)) => {
-            debug!("Found {n} global ranks, {m} local ranks on node {node}");
-        }
-        _ => {
-            bail!("no relevant MPI env vars found!")
-        }
-    }
+    mpi::install_scheduler_and_workers()?;
 
-    if is_mpi_rank_for_scheduler() {
-        info!("try run scheduler on {node} in rank 0 ...");
+    let node = hostname();
+    if mpi::is_mpi_rank_for_scheduler() {
+        info!("try run scheduler on rank 0 of node {node} ...");
         let address = format!("{node}:3030");
         let server = ServerCli {
             address: address.clone(),
@@ -180,7 +157,10 @@ async fn run_scheduler_or_worker_dwim(scheduler_address_file: &Path) -> Result<(
         server.enter_main().await?;
     }
 
-    if is_mpi_rank_for_worker() {
+    let lock_file_worker = format!("gosh-remote-worker-{node}.lock");
+    if mpi::is_mpi_rank_for_worker() {
+        // NOTE: scheduler need to be ready for worker connection
+        gut::utils::sleep(0.5);
         let address = format!("{node}:3031");
         // use lock file to start only one worker per node
         if let Ok(_) = LockFile::new(lock_file_worker.as_ref(), &address) {
@@ -234,13 +214,11 @@ pub async fn remote_enter_main() -> Result<()> {
         RemoteCommand::Server(server) => {
             debug!("Run VASP for interactive calculation ...");
             server.enter_main().await?;
-            log_dbg!();
         }
         RemoteCommand::Mpi(mpi) => {
             mpi.enter_main().await?;
         }
     }
-    log_dbg!();
 
     Ok(())
 }
