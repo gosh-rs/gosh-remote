@@ -194,10 +194,7 @@ pub fn new_interactive_task() -> (TaskServer, TaskClient) {
         rx_ctl: rx_ctl.into(),
     };
 
-    let client = TaskClient {
-        tx_int,
-        tx_ctl,
-    };
+    let client = TaskClient { tx_int, tx_ctl };
 
     (server, client)
 }

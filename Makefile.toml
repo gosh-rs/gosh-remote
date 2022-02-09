@@ -1,0 +1,5 @@
+[tasks.install]
+#command = "env"
+script = '''
+cargo im --root=releases/${CARGO_MAKE_PROJECT_VERSION} --no-track --bins --force
+'''

@@ -289,8 +289,16 @@ impl Computation {
             .stderr(std::process::Stdio::piped())
             .spawn_session()?;
 
-        let mut stdout = session.child.stdout.take().expect("child did not have a handle to stdout");
-        let mut stderr = session.child.stderr.take().expect("child did not have a handle to stderr");
+        let mut stdout = session
+            .child
+            .stdout
+            .take()
+            .expect("child did not have a handle to stdout");
+        let mut stderr = session
+            .child
+            .stderr
+            .take()
+            .expect("child did not have a handle to stderr");
 
         // redirect stdout and stderr to files for user inspection.
         let mut fout = tokio::fs::File::create(self.out_file()).await?;
