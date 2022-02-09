@@ -16,6 +16,15 @@ pub fn get_local_rank_id() -> Option<usize> {
     })
 }
 
+fn remove_mpi_env_vars() {
+    debug!("remove all MPI relevant env vars ...");
+    for (k, v) in std::env::vars() {
+        if k.contains("MPI") {
+            std::env::remove_var(k);
+        }
+    }
+}
+
 /// Return MPI global rank ID
 pub fn get_global_rank_id() -> Option<usize> {
     std::env::vars().find_map(|(k, v)| match k.as_str() {
@@ -57,11 +66,7 @@ pub fn get_global_number_of_ranks() -> Option<usize> {
 // ae1f2b04 ends here
 
 // [[file:../remote.note::7e536226][7e536226]]
-fn is_mpi_rank_for_scheduler() -> bool {
-    mpi::get_global_rank_id() == Some(0)
-}
-
-pub fn install_scheduler_or_worker() -> Result<bool> {
+pub fn install_scheduler_or_worker(share_node: bool) -> Result<bool> {
     let node = hostname();
     debug!("Install scheduler/workers on node {node} ...");
     match (
@@ -71,14 +76,26 @@ pub fn install_scheduler_or_worker() -> Result<bool> {
         get_local_rank_id(),
     ) {
         (Some(n), Some(m), Some(i), Some(j)) => {
+            remove_mpi_env_vars();
             debug!("Found {n} global ranks, {m} local ranks on node {node}");
+            let x = n/m;
+            debug!("Will install {x} workers on {x} nodes");
             if i == 0 {
                 info!("install scheduler on rank {i}/{j} of node {node}");
                 return Ok(true);
-            } else {
+            }
+            // also install worker on the same node as the scheduler
+            if i == j && j == 1 {
+                if share_node {
+                    info!("install worker on rank {i}/{j} of node {node}");
+                    return Ok(false);
+                }
+            }
+            if j == 0 {
                 info!("install worker on rank {i}/{j} of node {node}");
                 return Ok(false);
             }
+            bail!("ignore rank {i}/{j}");
         }
         _ => {
             bail!("no relevant MPI env vars found!")

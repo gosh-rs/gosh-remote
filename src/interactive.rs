@@ -135,8 +135,9 @@ mod server {
                     let jobs = rx_jobs.clone();
                     let nodes = nodes.clone();
                     tokio::spawn(async move {
-                        info!("task thread {i}: wait for remote node to compute incoming job");
-                        info!("task thread {i}: we have {} nodes available for computations");
+                        let n = nodes.len();
+                        info!("task {i}: wait for remote node to compute incoming job");
+                        info!("task {i}: we have {n} nodes available for computations");
                         borrow_node_and_compute(nodes, jobs).await;
                         log_dbg!();
                     })
@@ -144,9 +145,8 @@ mod server {
                 log_dbg!();
                 // handle logic in main thread
                 tokio::select! {
-                    Ok(x) = &mut join_handler => {
+                    Ok(_) = &mut join_handler => {
                         log_dbg!();
-                        dbg!(x);
                     }
                     Some(int) = rx_int.recv() => {
                         log_dbg!();

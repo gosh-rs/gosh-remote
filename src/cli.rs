@@ -133,22 +133,27 @@ struct MpiCli {
     #[structopt(short = 'w', default_value = GOSH_SCHEDULER_FILE)]
     address_file: PathBuf,
 
-    #[structopt(long, default_value = "10.0")]
+    #[structopt(long, default_value = "2.0")]
     timeout: f64,
 }
 
 impl MpiCli {
     async fn enter_main(&self) -> Result<()> {
-        run_scheduler_or_worker_dwim(&self.address_file, self.timeout).await?;
+        if let Err(err) = run_scheduler_or_worker_dwim(&self.address_file, self.timeout).await {
+            debug!("{err:?}");
+        }
         Ok(())
     }
 }
 
 /// Run scheduler or worker according to MPI local rank ID
 async fn run_scheduler_or_worker_dwim(scheduler_address_file: &Path, timeout: f64) -> Result<()> {
-    let install_scheduler = mpi::install_scheduler_or_worker()?;
+    let install_scheduler = mpi::install_scheduler_or_worker(true)?;
     let node = hostname();
     if install_scheduler {
+        if scheduler_address_file.exists() {
+            let _ = std::fs::remove_file(scheduler_address_file);
+        }
         let address = format!("{node}:3030");
         let server = ServerCli {
             address: address.clone(),
@@ -159,22 +164,17 @@ async fn run_scheduler_or_worker_dwim(scheduler_address_file: &Path, timeout: f6
     } else {
         let lock_file_worker = format!("gosh-remote-worker-{node}.lock");
         // NOTE: scheduler need to be ready for worker connection
-        gut::utils::sleep(1.5);
+        gut::utils::sleep(0.5);
         let address = format!("{node}:3031");
-        // use lock file to start only one worker per node
-        if let Ok(_) = LockFile::new(lock_file_worker.as_ref(), &address) {
-            let server = ServerCli {
-                address: address.clone(),
-                mode: ServerMode::AsWorker,
-            };
-            let o = read_scheduler_address_from_lock_file(scheduler_address_file, timeout)?;
-            let client = crate::client::Client::connect(o);
-            client.add_node(&address)?;
-            if let Err(e) = server.enter_main().await {
-                dbg!(e);
-            }
-        } else {
-            info!("worker already started on {node}.");
+        let server = ServerCli {
+            address: address.clone(),
+            mode: ServerMode::AsWorker,
+        };
+        let o = read_scheduler_address_from_lock_file(scheduler_address_file, timeout)?;
+        let client = crate::client::Client::connect(o);
+        client.add_node(&address)?;
+        if let Err(e) = server.enter_main().await {
+            dbg!(e);
         }
     }
 

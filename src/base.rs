@@ -281,7 +281,7 @@ impl Computation {
     async fn start(&mut self) -> Result<()> {
         let program = self.run_file();
         let wdir = self.wrk_dir();
-        info!("job work direcotry: {}", wdir.display());
+        trace!("job work direcotry: {}", wdir.display());
 
         let mut session = tokio::process::Command::new(&program)
             .current_dir(wdir)
@@ -289,16 +289,8 @@ impl Computation {
             .stderr(std::process::Stdio::piped())
             .spawn_session()?;
 
-        let mut stdout = session
-            .child
-            .stdout
-            .take()
-            .expect("child did not have a handle to stdout");
-        let mut stderr = session
-            .child
-            .stderr
-            .take()
-            .expect("child did not have a handle to stderr");
+        let mut stdout = session.child.stdout.take().expect("child did not have a handle to stdout");
+        let mut stderr = session.child.stderr.take().expect("child did not have a handle to stderr");
 
         // redirect stdout and stderr to files for user inspection.
         let mut fout = tokio::fs::File::create(self.out_file()).await?;
@@ -307,7 +299,7 @@ impl Computation {
         tokio::io::copy(&mut stderr, &mut ferr).await?;
 
         let sid = session.handler().id();
-        info!("command running in session {:?}", sid);
+        debug!("command running in session {:?}", sid);
         self.session = session.into();
 
         Ok(())
