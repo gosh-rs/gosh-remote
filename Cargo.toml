@@ -1,7 +1,7 @@
 # [[file:remote.note::5bcb0b71][5bcb0b71]]
 [package]
 name = "gosh-remote"
-version = "0.0.4"
+version = "0.0.5"
 edition = "2021"
 authors = ["Wenping Guo <ybyygu@gmail.com>"]
 

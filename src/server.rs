@@ -1,8 +1,10 @@
-// [[file:../remote.note::aa689ac9][aa689ac9]]
+// [[file:../remote.note::*imports][imports:1]]
 use super::*;
 use std::fmt::Debug;
 use std::net::{SocketAddr, ToSocketAddrs};
+// imports:1 ends here
 
+// [[file:../remote.note::0b562a75][0b562a75]]
 /// Computation server.
 pub struct Server {
     pub address: SocketAddr,
@@ -15,4 +17,4 @@ impl Server {
         Self { address: addrs[0] }
     }
 }
-// aa689ac9 ends here
+// 0b562a75 ends here
