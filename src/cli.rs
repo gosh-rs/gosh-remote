@@ -125,6 +125,7 @@ impl ServerCli {
 
 // [[file:../remote.note::001e63a1][001e63a1]]
 use base::LockFile;
+use mpi::Mpi;
 
 /// Start scheduler and worker services automatically when run in MPI
 /// environment (to be called with mpirun command)
@@ -149,9 +150,22 @@ impl MpiCli {
 
 /// Run scheduler or worker according to MPI local rank ID
 async fn run_scheduler_or_worker_dwim(scheduler_address_file: &Path, timeout: f64) -> Result<()> {
-    let install_scheduler = mpi::install_scheduler_or_worker(true)?;
     let node = hostname();
-    if install_scheduler {
+    let mpi = Mpi::try_from_env().ok_or(format_err!("no mpi env"))?;
+
+    let i = mpi.global_rank;
+    let j = mpi.local_rank;
+    let m = mpi.global_size;
+    let n = mpi.local_size;
+    let x = m / n;
+    debug!("Found {m} global ranks, {n} local ranks on node {node}");
+    debug!("Will install {x} workers and 1 scheduler on {x} nodes");
+
+    let install_scheduler = i == 0;
+    let install_worker = j == 0;
+    let rank = format!("{i} of {n}/{j} or {m}");
+    let h1: Option<_> = if install_scheduler {
+        info!("{rank}: install scheduler on {node}");
         if scheduler_address_file.exists() {
             let _ = std::fs::remove_file(scheduler_address_file);
         }
@@ -161,8 +175,18 @@ async fn run_scheduler_or_worker_dwim(scheduler_address_file: &Path, timeout: f6
             mode: ServerMode::AsScheduler,
         };
         let _lock = LockFile::new(&scheduler_address_file, &address)?;
-        server.enter_main().await?;
+
+        let h = tokio::spawn(async move {
+            if let Err(e) = server.enter_main().await {
+                error!("{e:?}");
+            }
+        });
+        h.into()
     } else {
+        None
+    };
+    let h2 = if install_worker {
+        info!("{rank}: install worker on {node}");
         let lock_file_worker = format!("gosh-remote-worker-{node}.lock");
         // NOTE: scheduler need to be ready for worker connection
         gut::utils::sleep(0.5);
@@ -175,10 +199,23 @@ async fn run_scheduler_or_worker_dwim(scheduler_address_file: &Path, timeout: f6
         let client = crate::client::Client::connect(o);
         client.add_node(&address)?;
         let _lock = LockFile::new(&lock_file_worker.as_ref(), &address)?;
-        if let Err(e) = server.enter_main().await {
-            dbg!(e);
+        let h = tokio::spawn(async move {
+            if let Err(e) = server.enter_main().await {
+                error!("{e:?}");
+            }
+        });
+        h.into()
+    } else {
+        None
+    };
+
+    async fn handle<T>(h: Option<tokio::task::JoinHandle<T>>) {
+        if let Some(h) = h {
+            let _ = h.await;
         }
     }
+
+    tokio::join!(handle(h1), handle(h2));
 
     Ok(())
 }
