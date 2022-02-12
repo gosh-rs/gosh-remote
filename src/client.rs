@@ -1,11 +1,8 @@
 // [[file:../remote.note::92f27790][92f27790]]
 use super::*;
-use gut::fs::*;
 // 92f27790 ends here
 
 // [[file:../remote.note::99dad0b0][99dad0b0]]
-use base::Node;
-
 /// Client of remote execution
 pub struct Client {
     client: reqwest::blocking::Client,

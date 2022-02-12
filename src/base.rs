@@ -312,42 +312,56 @@ impl Computation {
         let txt = gut::fs::read_file(self.out_file())?;
         Ok(txt)
     }
-
-    /// Return true if session already has been started.
-    fn is_started(&self) -> bool {
-        self.session.is_some()
-    }
 }
 // f8672e0c ends here
 
-// [[file:../remote.note::34c67980][34c67980]]
-impl Computation {
-    /// Check if job has been done correctly.
-    fn is_done(&self) -> bool {
-        let runfile = self.run_file();
-        let outfile = self.out_file();
+// [[file:../remote.note::9b7911ae][9b7911ae]]
+#[derive(Debug)]
+pub struct LockFile {
+    file: std::fs::File,
+    path: PathBuf,
+}
 
-        if self.wrk_dir().is_dir() {
-            if outfile.is_file() && runfile.is_file() {
-                if let Ok(time2) = outfile.metadata().and_then(|m| m.modified()) {
-                    if let Ok(time1) = runfile.metadata().and_then(|m| m.modified()) {
-                        if time2 >= time1 {
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
+impl LockFile {
+    fn create(path: &Path) -> Result<LockFile> {
+        use fs2::*;
 
-        false
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(&path)
+            .context("Could not create ID file")?;
+
+        // https://docs.rs/fs2/0.4.3/fs2/trait.FileExt.html
+        file.try_lock_exclusive()
+            .context("Could not lock ID file; Is the daemon already running?")?;
+
+        Ok(LockFile {
+            file,
+            path: path.to_owned(),
+        })
     }
 
-    /// Update file timestamps to make sure `is_done` call return true.
-    fn fake_done(&self) {
-        todo!()
+    fn write_msg(&mut self, msg: &str) -> Result<()> {
+        writeln!(&mut self.file, "{msg}").context("Could not write ID file")?;
+        self.file.flush().context("Could not flush ID file")
+    }
+
+    /// Create a pidfile for process `pid`
+    pub fn new(path: &Path, msg: &str) -> Result<Self> {
+        let mut pidfile = Self::create(path)?;
+        pidfile.write_msg(msg)?;
+
+        Ok(pidfile)
     }
 }
-// 34c67980 ends here
+
+impl Drop for LockFile {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.path);
+    }
+}
+// 9b7911ae ends here
 
 // [[file:../remote.note::4a28f1b7][4a28f1b7]]
 pub use node::{Node, Nodes};

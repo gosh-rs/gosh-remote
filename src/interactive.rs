@@ -86,7 +86,7 @@ mod server {
         let name = job.name();
         info!("Request remote node {node:?} to compute job {name} ...");
         // FIXME: potentially deadlock
-        let mut comput = job.submit_remote(node)?;
+        let comput = job.submit_remote(node)?;
         // if computation failed, we should tell the client to exit
         match comput.wait_for_output().await {
             Ok(out) => {
@@ -166,14 +166,12 @@ mod server {
                                 log_dbg!();
                                 break;
                             },
-                            _ => log_dbg!(),
                         }
                     }
                     else => {
                         bail!("Unexpected branch: the communication channels broken?");
                     }
                 }
-                log_dbg!();
             }
             Ok(())
         }

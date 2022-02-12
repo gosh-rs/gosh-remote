@@ -40,16 +40,14 @@ mod filters {
 
     /// Handle request for adding a new node into `Nodes`
     async fn add_node(node: Node, task: TaskClient) -> Result<impl warp::Reply, warp::Rejection> {
-        // FIXME: remove unwrap
-        task.add_node(node).await.unwrap();
-        Ok(warp::reply::json(&()))
+        let o = format!("{:?}", task.add_node(node).await);
+        Ok(warp::reply::json(&o))
     }
 
     /// Handle request for adding a new node into `Nodes`
     async fn add_job(job: Job, mut task: TaskClient) -> Result<impl warp::Reply, warp::Rejection> {
-        // FIXME: remove unwrap
-        let out = task.interact(job).await.unwrap();
-        Ok(warp::reply::json(&out))
+        let o = format!("{:?}", task.interact(job).await);
+        Ok(warp::reply::json(&o))
     }
 
     /// POST /nodes with JSON body
@@ -89,7 +87,7 @@ impl Server {
 
         let server = Self::new(addr);
         let api = filters::api(task_client.clone());
-        let mut h2 = tokio::spawn(async move {
+        let h2 = tokio::spawn(async move {
             warp::serve(api).run(server.address).await;
         });
         tokio::pin!(h2);
@@ -98,15 +96,15 @@ impl Server {
         tokio::pin!(h3);
         loop {
             tokio::select! {
-                res = &mut h1 => {
+                _res = &mut h1 => {
                     log_dbg!();
                 }
-                res = &mut h2 => {
+                _res = &mut h2 => {
                     log_dbg!();
                 }
-                res = &mut h3 => {
+                _res = &mut h3 => {
                     info!("User interrupted. Shutting down ...");
-                    task_client.abort().await;
+                    let _ = task_client.abort().await;
                     break;
                 }
             }

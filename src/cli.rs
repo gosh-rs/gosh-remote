@@ -24,8 +24,8 @@ fn read_scheduler_address_from_lock_file(scheduler_address_file: &Path, timeout:
 /// remote nodes
 #[derive(StructOpt)]
 struct ClientCli {
-    /// The remote execution service address, e.g. localhost:3030
-    #[structopt(long = "scheduler", conflicts_with = "scheduler-address-file")]
+    /// The remote execution service address, e.g. localhost:3031
+    #[structopt(long = "address", conflicts_with = "scheduler-address-file")]
     scheduler_address: Option<String>,
 
     /// The scheduler address to be read from file `scheduler_address_file`
@@ -111,7 +111,6 @@ impl ServerCli {
             ServerMode::AsScheduler => {
                 println!("Start scheduler serivce at {address:?}");
                 Server::serve_as_scheduler(address).await;
-                log_dbg!();
             }
             ServerMode::AsWorker => {
                 println!("Start worker serivce at {address:?}");
@@ -125,6 +124,8 @@ impl ServerCli {
 // 674c2404 ends here
 
 // [[file:../remote.note::001e63a1][001e63a1]]
+use base::LockFile;
+
 /// Start scheduler and worker services automatically when run in MPI
 /// environment (to be called with mpirun command)
 #[derive(StructOpt)]
@@ -159,7 +160,7 @@ async fn run_scheduler_or_worker_dwim(scheduler_address_file: &Path, timeout: f6
             address: address.clone(),
             mode: ServerMode::AsScheduler,
         };
-        let lock = LockFile::new(&scheduler_address_file, &address)?;
+        let _lock = LockFile::new(&scheduler_address_file, &address)?;
         server.enter_main().await?;
     } else {
         let lock_file_worker = format!("gosh-remote-worker-{node}.lock");
@@ -173,6 +174,7 @@ async fn run_scheduler_or_worker_dwim(scheduler_address_file: &Path, timeout: f6
         let o = read_scheduler_address_from_lock_file(scheduler_address_file, timeout)?;
         let client = crate::client::Client::connect(o);
         client.add_node(&address)?;
+        let _lock = LockFile::new(&lock_file_worker.as_ref(), &address)?;
         if let Err(e) = server.enter_main().await {
             dbg!(e);
         }

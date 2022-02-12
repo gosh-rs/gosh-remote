@@ -18,7 +18,7 @@ pub fn get_local_rank_id() -> Option<usize> {
 
 fn remove_mpi_env_vars() {
     debug!("remove all MPI relevant env vars ...");
-    for (k, v) in std::env::vars() {
+    for (k, _) in std::env::vars() {
         if k.contains("MPI") {
             std::env::remove_var(k);
         }
