@@ -178,58 +178,31 @@ async fn run_scheduler_or_worker_dwim(scheduler_address_file: &Path, timeout: f6
     let j = mpi.local_rank;
     let m = mpi.global_size;
     let n = mpi.local_size;
-    let x = m / n;
     debug!("Found {m} global ranks, {n} local ranks on node {node}");
-    debug!("Will install {x} workers and 1 scheduler on {x} nodes");
 
-    let install_scheduler = i == 0;
-    let install_worker = j == 0 && i != 0 || (i == 1 && j == 1);
-    // let install_worker = j == 0;
-    let rank = format!("{i} of {n}/{j} or {m}");
-    let h1: Option<_> = if install_scheduler {
-        info!("{rank}: install scheduler on {node}");
-        let address = format!("{node}:3030");
-        let address_file = scheduler_address_file.to_owned();
-        let h = tokio::spawn(async move {
-            if let Err(e) = ServerCli::run_as_scheduler(address_file, address).await {
-                error!("{e:?}");
-            }
-        });
-        h.into()
-    } else {
-        None
-    };
-    let h2 = if install_worker {
-        info!("{rank}: install worker on {node}");
-        let lock_file: PathBuf = format!("gosh-remote-worker-{node}.lock").into();
-        // NOTE: scheduler need to be ready for worker connection
-        gut::utils::sleep(0.5);
-        let address = format!("{node}:3031");
-        let o = read_scheduler_address_from_lock_file(scheduler_address_file, timeout)?;
-        let _lock_file = lock_file.clone();
-        let _address = address.clone();
-        let h = tokio::spawn(async move {
-            if let Err(e) = ServerCli::run_as_worker(_lock_file, _address).await {
-                error!("{e:?}");
-            }
-        });
-        // tell the scheduler add this worker when ready
-        wait_file(&lock_file, 2.0)?;
-        let client = crate::client::Client::connect(o);
-        client.add_node(&address)?;
-
-        h.into()
-    } else {
-        None
-    };
-
-    async fn handle<T>(h: Option<tokio::task::JoinHandle<T>>) {
-        if let Some(h) = h {
-            let _ = h.await;
+    let rank = format!("global rank {i} of {m} (local rank {j} of {n})");
+    match (i, j) {
+        // install scheduler
+        (0, 0) => {
+            info!("{rank}: install scheduler on {node}");
+            let address = format!("{node}:3030");
+            let address_file = scheduler_address_file.to_owned();
+            ServerCli::run_as_scheduler(address_file, address).await?;
+        }
+        // install worker
+        (_, 0) | (1, 1) => {
+            info!("{rank}: install worker on {node}");
+            let lock_file: PathBuf = format!("gosh-remote-worker-{node}.lock").into();
+            // NOTE: scheduler need to be ready for worker connection
+            gut::utils::sleep(0.5);
+            let address = format!("{node}:3031");
+            let o = read_scheduler_address_from_lock_file(scheduler_address_file, timeout)?;
+            ServerCli::run_as_worker(lock_file, address).await?;
+        }
+        (_, _) => {
+            debug!("{rank}: ignored");
         }
     }
-
-    tokio::join!(handle(h1), handle(h2));
 
     Ok(())
 }
