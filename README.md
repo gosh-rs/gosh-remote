@@ -8,16 +8,11 @@ distribution across multiple nodes in HPC environment.
     
     run-gosh-remote.sh
     
-        # mpirun hostname >hosts
-        # NOTE: the below line only works for Intel MPI or MPICH
-        # mpirun -print-rank-map -prepend-rank -hostfile hosts gosh-remote -v mpi-bootstrap
         # for OpenMPI, Intel MPI, MPICH or MVAPICH
         mpirun gosh-remote -v mpi-bootstrap
     
-    By default, the scheduler will be installed using MPI process of global rank
-    0, and the workers will be installed using MPI process local rank 0 on each
-    node. Specially, on the master node hosting the scheduler, an additional
-    worker will be installed using local rank 1 (and global rank 1).
+    By default, the scheduler will be installed using process of MPI global rank
+    0, and the workers will be installed using other MPI ranks.
     
     The above works as a normal batch script, that can be submitted to batch
     system using command such as bsub:
@@ -55,21 +50,29 @@ the main script for install scheduler and workers, and running magman
     
     set -x
     #export SPDKIT_RANDOM_SEED=2227866437669085292
-    rm magman.db
+    
+    LOCK_FILE="gosh-remote-scheduler.lock"
+    # run MAX_PROCS processes at a time
+    MAX_NPROC=8
     
     # start remote execution services
     (
-    mpirun hostname >hosts
-    mpirun -hostfile hosts gosh-remote -vv mpi-bootstrap -w "gosh-remote-scheduler.lock" 2>&1 | tee gosh-remote.log
+    # place one process (slot) on each node
+    #
+    # for Intel MPI or MPICH
+    mpirun hostname | sort | uniq |xargs -I{} echo {}:1 >machines
+    # one additional slot for scheduler on the master node
+    echo `hostname`:1 >>machine
+    mpirun -machinefile machines gosh-remote -vv mpi-bootstrap -w "$LOCK_FILE" 2>&1 | tee gosh-remote.log
     ) &
-    sleep 10
+    sleep 2
     
-    # run magman with 8 jobs in parallel at max
-    magman -j 8 -r -vv 2>&1 | tee magman.log
+    magman -j $MAX_NPROC -r -vv 2>&1 | tee magman.log
     
     sleep 1
     pkill gosh-remote
-    mpirun -hostfile hosts pkill gosh-remote
+    # or better
+    # mpirun pkill gosh-remote
 
 
 ## run-vasp.sh
