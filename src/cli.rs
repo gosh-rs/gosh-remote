@@ -148,6 +148,28 @@ impl MpiCli {
     }
 }
 
+impl ServerCli {
+    async fn run_as_scheduler(lock_file: PathBuf, address: String) -> Result<()> {
+        let lock = LockFile::new(&lock_file, &address)?;
+        let server = ServerCli {
+            address: address,
+            mode: ServerMode::AsScheduler,
+        };
+        server.enter_main().await?;
+        Ok(())
+    }
+
+    async fn run_as_worker(lock_file: PathBuf, address: String) -> Result<()> {
+        let lock = LockFile::new(&lock_file, &address)?;
+        let server = ServerCli {
+            address: address,
+            mode: ServerMode::AsWorker,
+        };
+        server.enter_main().await?;
+        Ok(())
+    }
+}
+
 /// Run scheduler or worker according to MPI local rank ID
 async fn run_scheduler_or_worker_dwim(scheduler_address_file: &Path, timeout: f64) -> Result<()> {
     let node = hostname();
@@ -166,18 +188,10 @@ async fn run_scheduler_or_worker_dwim(scheduler_address_file: &Path, timeout: f6
     let rank = format!("{i} of {n}/{j} or {m}");
     let h1: Option<_> = if install_scheduler {
         info!("{rank}: install scheduler on {node}");
-        if scheduler_address_file.exists() {
-            let _ = std::fs::remove_file(scheduler_address_file);
-        }
         let address = format!("{node}:3030");
-        let server = ServerCli {
-            address: address.clone(),
-            mode: ServerMode::AsScheduler,
-        };
-        let _lock = LockFile::new(&scheduler_address_file, &address)?;
-
+        let address_file = scheduler_address_file.to_owned();
         let h = tokio::spawn(async move {
-            if let Err(e) = server.enter_main().await {
+            if let Err(e) = ServerCli::run_as_scheduler(address_file, address).await {
                 error!("{e:?}");
             }
         });
@@ -187,20 +201,15 @@ async fn run_scheduler_or_worker_dwim(scheduler_address_file: &Path, timeout: f6
     };
     let h2 = if install_worker {
         info!("{rank}: install worker on {node}");
-        let lock_file_worker = format!("gosh-remote-worker-{node}.lock");
+        let lock_file: PathBuf = format!("gosh-remote-worker-{node}.lock").into();
         // NOTE: scheduler need to be ready for worker connection
         gut::utils::sleep(0.5);
         let address = format!("{node}:3031");
-        let server = ServerCli {
-            address: address.clone(),
-            mode: ServerMode::AsWorker,
-        };
         let o = read_scheduler_address_from_lock_file(scheduler_address_file, timeout)?;
         let client = crate::client::Client::connect(o);
         client.add_node(&address)?;
-        let _lock = LockFile::new(&lock_file_worker.as_ref(), &address)?;
         let h = tokio::spawn(async move {
-            if let Err(e) = server.enter_main().await {
+            if let Err(e) = ServerCli::run_as_worker(lock_file, address).await {
                 error!("{e:?}");
             }
         });
