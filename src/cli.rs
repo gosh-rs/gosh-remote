@@ -204,6 +204,9 @@ async fn run_scheduler_or_worker_dwim(scheduler_address_file: &Path, timeout: f6
             // NOTE: scheduler need to be ready for worker connection
             gut::utils::sleep(0.5);
             let o = read_scheduler_address_from_lock_file(scheduler_address_file, timeout)?;
+            // tell the scheduler add this worker when ready
+            wait_file(&lock_file, 2.0)?;
+            crate::client::Client::connect(o).add_node(&address)?;
             ServerCli::run_as_worker(lock_file, address).await?;
         }
         (_, _) => {
