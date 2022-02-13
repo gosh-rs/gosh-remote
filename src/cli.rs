@@ -84,7 +84,8 @@ impl ClientCli {
 // 512e88e7 ends here
 
 // [[file:../remote.note::674c2404][674c2404]]
-use crate::server::Server;
+use base::LockFile;
+use server::Server;
 
 #[derive(Debug, Clone, ArgEnum)]
 enum ServerMode {
@@ -120,11 +121,30 @@ impl ServerCli {
 
         Ok(())
     }
+
+    async fn run_as_scheduler(lock_file: PathBuf, address: String) -> Result<()> {
+        let lock = LockFile::new(&lock_file, &address)?;
+        let server = ServerCli {
+            address: address,
+            mode: ServerMode::AsScheduler,
+        };
+        server.enter_main().await?;
+        Ok(())
+    }
+
+    async fn run_as_worker(lock_file: PathBuf, address: String) -> Result<()> {
+        let lock = LockFile::new(&lock_file, &address)?;
+        let server = ServerCli {
+            address: address,
+            mode: ServerMode::AsWorker,
+        };
+        server.enter_main().await?;
+        Ok(())
+    }
 }
 // 674c2404 ends here
 
 // [[file:../remote.note::001e63a1][001e63a1]]
-use base::LockFile;
 use mpi::Mpi;
 
 /// Start scheduler and worker services automatically when run in MPI
@@ -144,28 +164,6 @@ impl MpiCli {
         if let Err(err) = run_scheduler_or_worker_dwim(&self.address_file, self.timeout).await {
             debug!("{err:?}");
         }
-        Ok(())
-    }
-}
-
-impl ServerCli {
-    async fn run_as_scheduler(lock_file: PathBuf, address: String) -> Result<()> {
-        let lock = LockFile::new(&lock_file, &address)?;
-        let server = ServerCli {
-            address: address,
-            mode: ServerMode::AsScheduler,
-        };
-        server.enter_main().await?;
-        Ok(())
-    }
-
-    async fn run_as_worker(lock_file: PathBuf, address: String) -> Result<()> {
-        let lock = LockFile::new(&lock_file, &address)?;
-        let server = ServerCli {
-            address: address,
-            mode: ServerMode::AsWorker,
-        };
-        server.enter_main().await?;
         Ok(())
     }
 }
