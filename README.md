@@ -8,9 +8,16 @@ distribution across multiple nodes in HPC environment.
     
     run-gosh-remote.sh
     
-        mpirun hostname >hosts
-        # works for Intel MPI or MPICH
-        mpirun -print-rank-map -prepend-rank -hostfile hosts gosh-remote -v mpi-bootstrap
+        # mpirun hostname >hosts
+        # NOTE: the below line only works for Intel MPI or MPICH
+        # mpirun -print-rank-map -prepend-rank -hostfile hosts gosh-remote -v mpi-bootstrap
+        # for OpenMPI, Intel MPI, MPICH or MVAPICH
+        mpirun gosh-remote -v mpi-bootstrap
+    
+    By default, the scheduler will be installed using MPI process of global rank
+    0, and the workers will be installed using MPI process local rank 0 on each
+    node. Specially, on the master node hosting the scheduler, an additional
+    worker will be installed using local rank 1 (and global rank 1).
     
     The above works as a normal batch script, that can be submitted to batch
     system using command such as bsub:
@@ -21,7 +28,7 @@ distribution across multiple nodes in HPC environment.
 
 2.  change job script
     
-    the master script calling test.sh in parallel using 3 processes:
+    the master script will call test.sh in parallel using 3 processes:
     
         xargs -P 3 -n 1 gosh-remote client run <<<$'./test.sh ./test.sh ./test.sh'
     
