@@ -31,6 +31,30 @@ fn hostname() -> String {
 }
 // 5c33a18a ends here
 
+// [[file:../remote.note::92bf67b7][92bf67b7]]
+use std::net::{SocketAddr, TcpListener, ToSocketAddrs};
+
+/// Test if `address` available for socket binding
+pub fn address_available<A: ToSocketAddrs>(address: A) -> bool {
+    match TcpListener::bind(address) {
+        Ok(_) => true,
+        Err(e) => false,
+    }
+}
+
+/// Return the address available for binding with the OS assigns port.
+pub fn get_free_tcp_address() -> Option<SocketAddr> {
+    let host = hostname();
+    TcpListener::bind(format!("{host}:0")).ok()?.local_addr().ok()
+}
+
+#[test]
+fn test_addr() {
+    let addr = get_free_tcp_address().unwrap();
+    assert!(address_available(addr));
+}
+// 92bf67b7 ends here
+
 // [[file:../remote.note::56d334b5][56d334b5]]
 #[cfg(feature = "adhoc")]
 /// Docs for local mods

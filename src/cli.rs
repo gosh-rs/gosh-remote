@@ -169,6 +169,13 @@ impl MpiCli {
     }
 }
 
+fn default_server_address() -> String {
+    match get_free_tcp_address().expect("tcp address") {
+        std::net::SocketAddr::V4(addr) => addr.to_string(),
+        std::net::SocketAddr::V6(addr) => panic!("IPV6 is not supported"),
+    }
+}
+
 /// Run scheduler or worker according to MPI local rank ID
 async fn run_scheduler_or_worker_dwim(scheduler_address_file: &Path, timeout: f64) -> Result<()> {
     let node = hostname();
@@ -181,11 +188,12 @@ async fn run_scheduler_or_worker_dwim(scheduler_address_file: &Path, timeout: f6
     debug!("Found {m} global ranks, {n} local ranks on node {node}");
 
     let rank = format!("global rank {i} of {m} (local rank {j} of {n})");
+    let address = default_server_address();
     match (i, j) {
         // install scheduler
         (0, 0) => {
             info!("{rank}: install scheduler on {node}");
-            let address = format!("{node}:3030");
+            // let address = format!("{node}:3030");
             let address_file = scheduler_address_file.to_owned();
             ServerCli::run_as_scheduler(address_file, address).await?;
         }
@@ -195,7 +203,6 @@ async fn run_scheduler_or_worker_dwim(scheduler_address_file: &Path, timeout: f6
             let lock_file: PathBuf = format!("gosh-remote-worker-{node}.lock").into();
             // NOTE: scheduler need to be ready for worker connection
             gut::utils::sleep(0.5);
-            let address = format!("{node}:3031");
             let o = read_scheduler_address_from_lock_file(scheduler_address_file, timeout)?;
             ServerCli::run_as_worker(lock_file, address).await?;
         }
