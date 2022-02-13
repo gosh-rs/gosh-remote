@@ -190,27 +190,23 @@ async fn run_scheduler_or_worker_dwim(scheduler_address_file: &Path, timeout: f6
     let rank = format!("global rank {i} of {m} (local rank {j} of {n})");
     let address = default_server_address();
     match (i, j) {
-        // install scheduler
+        // install scheduler using rank 0
         (0, 0) => {
             info!("{rank}: install scheduler on {node}");
             // let address = format!("{node}:3030");
             let address_file = scheduler_address_file.to_owned();
             ServerCli::run_as_scheduler(address_file, address).await?;
         }
-        // install worker
-        (_, 0) | (1, 1) => {
+        // install worker using other rank
+        (_, j) => {
             info!("{rank}: install worker on {node}");
-            let lock_file: PathBuf = format!("gosh-remote-worker-{node}.lock").into();
+            let lock_file: PathBuf = format!("gosh-remote-worker-{node}-rank{j}.lock").into();
             // NOTE: scheduler need to be ready for worker connection
             gut::utils::sleep(0.5);
             let o = read_scheduler_address_from_lock_file(scheduler_address_file, timeout)?;
-            // tell the scheduler add this worker when ready
-            wait_file(&lock_file, 2.0)?;
+            // tell the scheduler add this worker
             crate::client::Client::connect(o).add_node(&address)?;
             ServerCli::run_as_worker(lock_file, address).await?;
-        }
-        (_, _) => {
-            debug!("{rank}: ignored");
         }
     }
 
