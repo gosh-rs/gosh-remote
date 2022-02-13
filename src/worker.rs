@@ -23,11 +23,13 @@ mod handlers {
             Ok(mut comput) => match comput.wait_for_output().await {
                 Ok(out) => {
                     let ret = ComputationResult::JobCompleted(out);
+                    debug!("computation done with: {ret:?}");
                     Ok(warp::reply::json(&ret))
                 }
                 Err(err) => {
                     let msg = format!("{err:?}");
                     let ret = ComputationResult::JobFailed(msg);
+                    debug!("computation failed with: {ret:?}");
                     Ok(warp::reply::json(&ret))
                 }
             },

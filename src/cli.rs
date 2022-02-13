@@ -183,7 +183,8 @@ async fn run_scheduler_or_worker_dwim(scheduler_address_file: &Path, timeout: f6
     debug!("Will install {x} workers and 1 scheduler on {x} nodes");
 
     let install_scheduler = i == 0;
-    let install_worker = j == 0;
+    let install_worker = j == 0 && i != 0 || (i == 1 && j == 1);
+    // let install_worker = j == 0;
     let rank = format!("{i} of {n}/{j} or {m}");
     let h1: Option<_> = if install_scheduler {
         info!("{rank}: install scheduler on {node}");
