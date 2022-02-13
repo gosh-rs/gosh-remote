@@ -145,6 +145,7 @@ impl ServerCli {
 // 674c2404 ends here
 
 // [[file:../remote.note::001e63a1][001e63a1]]
+use base::wait_file;
 use mpi::Mpi;
 
 /// Start scheduler and worker services automatically when run in MPI
@@ -204,13 +205,18 @@ async fn run_scheduler_or_worker_dwim(scheduler_address_file: &Path, timeout: f6
         gut::utils::sleep(0.5);
         let address = format!("{node}:3031");
         let o = read_scheduler_address_from_lock_file(scheduler_address_file, timeout)?;
-        let client = crate::client::Client::connect(o);
-        client.add_node(&address)?;
+        let _lock_file = lock_file.clone();
+        let _address = address.clone();
         let h = tokio::spawn(async move {
-            if let Err(e) = ServerCli::run_as_worker(lock_file, address).await {
+            if let Err(e) = ServerCli::run_as_worker(_lock_file, _address).await {
                 error!("{e:?}");
             }
         });
+        // tell the scheduler add this worker when ready
+        wait_file(&lock_file, 2.0)?;
+        let client = crate::client::Client::connect(o);
+        client.add_node(&address)?;
+
         h.into()
     } else {
         None
