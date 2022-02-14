@@ -57,13 +57,19 @@ the main script for install scheduler and workers, and running magman
     
     # start remote execution services
     (
-    # place one process (slot) on each node
     #
-    # for Intel MPI or MPICH
-    mpirun hostname | sort | uniq |xargs -I{} echo {}:1 >machines
-    # one additional slot for scheduler on the master node
-    echo `hostname`:1 >>machine
-    mpirun -machinefile machines gosh-remote -vv mpi-bootstrap -w "$LOCK_FILE" 2>&1 | tee gosh-remote.log
+    # use mpirun to install worker and scheduler on remote nodes
+    #
+    # create hostfile using LSB env var
+    # echo $LSB_HOSTS |xargs -n 1| uniq >hosts
+    # or
+    mpirun hostname | sort | uniq >hosts
+    # install one additional worker on the master node
+    echo localhost >>hosts
+    # use mpirun to place one process (slot) on each node, so that each worker/job
+    # can occupy all CPUs in that node
+    # works for Intel MPI or MPICH
+    mpirun -bootstrap=ssh -prepend-rank -print-rank-map -hostfile hosts gosh-remote -vv mpi-bootstrap -w "$LOCK_FILE" 2>&1 | tee gosh-remote.log
     ) &
     sleep 2
     
