@@ -347,12 +347,11 @@ impl LockFile {
         self.file.flush().context("Could not flush ID file")
     }
 
-    /// Create a pidfile for process `pid`
+    /// Create a lockfile for process `pid`
     pub fn new(path: &Path, msg: &str) -> Result<Self> {
-        let mut pidfile = Self::create(path)?;
-        pidfile.write_msg(msg)?;
-
-        Ok(pidfile)
+        let mut lockfile = Self::create(path)?;
+        lockfile.write_msg(msg)?;
+        Ok(lockfile)
     }
 }
 

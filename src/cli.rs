@@ -123,8 +123,7 @@ impl ServerCli {
         Ok(())
     }
 
-    async fn run_as_scheduler(lock_file: PathBuf, address: String) -> Result<()> {
-        let _ = LockFile::new(&lock_file, &address)?;
+    async fn run_as_scheduler(address: String) -> Result<()> {
         let server = ServerCli {
             address: address,
             mode: ServerMode::AsScheduler,
@@ -133,8 +132,7 @@ impl ServerCli {
         Ok(())
     }
 
-    async fn run_as_worker(lock_file: PathBuf, address: String) -> Result<()> {
-        let _ = LockFile::new(&lock_file, &address)?;
+    async fn run_as_worker(address: String) -> Result<()> {
         let server = ServerCli {
             address: address,
             mode: ServerMode::AsWorker,
@@ -195,7 +193,8 @@ async fn run_scheduler_or_worker_dwim(scheduler_address_file: &Path, timeout: f6
             info!("{rank}: install scheduler on {node}");
             // let address = format!("{node}:3030");
             let address_file = scheduler_address_file.to_owned();
-            ServerCli::run_as_scheduler(address_file, address).await?;
+            let _lock = LockFile::new(&address_file, &address)?;
+            ServerCli::run_as_scheduler(address).await?;
         }
         // install worker using other rank
         (_, j) => {
@@ -203,10 +202,11 @@ async fn run_scheduler_or_worker_dwim(scheduler_address_file: &Path, timeout: f6
             let lock_file: PathBuf = format!("gosh-remote-worker-{node}-rank{j}.lock").into();
             // NOTE: scheduler need to be ready for worker connection
             gut::utils::sleep(0.5);
+            let _lock = LockFile::new(&lock_file, &address)?;
             let o = read_scheduler_address_from_lock_file(scheduler_address_file, timeout)?;
             // tell the scheduler add this worker
             crate::client::Client::connect(o).add_node(&address)?;
-            ServerCli::run_as_worker(lock_file, address).await?;
+            ServerCli::run_as_worker(address).await?;
         }
     }
 
@@ -218,6 +218,7 @@ async fn run_scheduler_or_worker_dwim(scheduler_address_file: &Path, timeout: f6
 /// A helper program for running program concurrently distributed over multiple
 /// remote nodes
 #[derive(Parser)]
+#[clap(author, version, about)]
 struct Cli {
     #[structopt(flatten)]
     verbose: gut::cli::Verbosity,
