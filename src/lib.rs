@@ -51,7 +51,7 @@ pub fn get_free_tcp_address() -> Option<SocketAddr> {
 #[test]
 fn test_addr() {
     let addr = get_free_tcp_address().unwrap();
-    assert!(address_available(addr));
+    assert!(address_available(dbg!(addr)));
 }
 // 92bf67b7 ends here
 

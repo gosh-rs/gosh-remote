@@ -2,6 +2,7 @@
 use super::*;
 use gut::cli::*;
 use gut::fs::*;
+use base::wait_file;
 
 pub use gut::prelude::*;
 // 3a532d42 ends here
@@ -11,7 +12,7 @@ const GOSH_SCHEDULER_FILE: &str = "gosh-remote-scheduler.lock";
 
 fn read_scheduler_address_from_lock_file(scheduler_address_file: &Path, timeout: f64) -> Result<String> {
     debug!("reading scheduler address from file: {scheduler_address_file:?}");
-    base::wait_file(scheduler_address_file, timeout)?;
+    wait_file(scheduler_address_file, timeout)?;
     let o = gut::fs::read_file(scheduler_address_file)?.trim().to_string();
     Ok(o)
 }
@@ -123,7 +124,7 @@ impl ServerCli {
     }
 
     async fn run_as_scheduler(lock_file: PathBuf, address: String) -> Result<()> {
-        let lock = LockFile::new(&lock_file, &address)?;
+        let _ = LockFile::new(&lock_file, &address)?;
         let server = ServerCli {
             address: address,
             mode: ServerMode::AsScheduler,
@@ -133,7 +134,7 @@ impl ServerCli {
     }
 
     async fn run_as_worker(lock_file: PathBuf, address: String) -> Result<()> {
-        let lock = LockFile::new(&lock_file, &address)?;
+        let _ = LockFile::new(&lock_file, &address)?;
         let server = ServerCli {
             address: address,
             mode: ServerMode::AsWorker,
@@ -145,7 +146,6 @@ impl ServerCli {
 // 674c2404 ends here
 
 // [[file:../remote.note::001e63a1][001e63a1]]
-use base::wait_file;
 use mpi::Mpi;
 
 /// Start scheduler and worker services automatically when run in MPI
