@@ -95,7 +95,7 @@ the script to call VASP
     
     # NOTE: the "-host" option is required for avoiding process migration due to
     # nested mpirun call
-    gosh-remote -vv client -w "$LOCK_FILE" run "mpirun -host \$(hostname) vasp"
+    gosh-remote -vv client -w "$LOCK_FILE" run "mpirun -np 72 -host \$(hostname) vasp"
 
 
 # FAQ
