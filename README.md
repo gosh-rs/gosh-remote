@@ -8,11 +8,11 @@ distribution across multiple nodes in HPC environment.
     
     run-gosh-remote.sh
     
-        # for OpenMPI, Intel MPI, MPICH or MVAPICH
-        mpirun gosh-remote -v mpi-bootstrap
-    
-    By default, the scheduler will be installed using process of MPI global rank
-    0, and the workers will be installed using other MPI ranks.
+        # install scheduler
+        gosh-remote bootstrap as-scheduler &
+        
+        # install workers on allocated nodes from batch system
+        mpirun gosh-remote -v bootstrap as-worker
     
     The above works as a normal batch script, that can be submitted to batch
     system using command such as bsub:
