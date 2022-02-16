@@ -2,7 +2,7 @@ gosh-remote can turn any multiprocess parallelism script into remote
 distribution across multiple nodes in HPC environment.
 
 
-# how to use
+# Usage
 
 1.  install scheduler and workers automatically using mpirun in batch system
     
@@ -39,7 +39,7 @@ distribution across multiple nodes in HPC environment.
         "Ok(\"{\\\"JobCompleted\\\":\\\"running on node042\\\\n\\\"}\")"
 
 
-# Real example in action (for magman)
+# Example in action (for magman)
 
 
 ## run.sh
@@ -57,27 +57,29 @@ the main script for install scheduler and workers, and running magman
     
     # start remote execution services
     (
-    #
-    # use mpirun to install worker and scheduler on remote nodes
-    #
-    # create hostfile using LSB env var
-    # echo $LSB_HOSTS |xargs -n 1| uniq >hosts
+    # install scheduler on the master node; the service address will be recorded in LOCK_FILE
+    gosh-remote -v bootstrap -w "$LOCK_FILE" as-scheduler &
+    
+    # use mpirun to install one worker on each node by creating a machinefile for mpirun
+    which mpirun
+    # for LSB batch system, we can read nodes from env var
+    #echo $LSB_HOSTS |xargs -n 1| uniq | xargs -I{} echo {}:1>machines
     # or
-    mpirun hostname | sort | uniq >hosts
-    # install one additional worker on the master node
-    echo localhost >>hosts
-    # use mpirun to place one process (slot) on each node, so that each worker/job
-    # can occupy all CPUs in that node
-    # works for Intel MPI or MPICH
-    mpirun -bootstrap=ssh -prepend-rank -print-rank-map -hostfile hosts gosh-remote -vv mpi-bootstrap -w "$LOCK_FILE" 2>&1 | tee gosh-remote.log
-    ) &
+    mpirun hostname | sort | uniq |xargs -I{} echo {}:1 >machines
+    # works for Intel MPI, MPICH, MVAPICH
+    mpirun -bootstrap=ssh -prepend-rank -machinefile machines gosh-remote -vv bootstrap as-worker -w "$LOCK_FILE"
+    ) 2>&1 | tee gosh-remote.log &
     sleep 2
     
-    magman -j $MAX_NPROC -r -vv 2>&1 | tee magman.log
+    # step 2: run magman
+    # NOTE: to run vasp remotely using the scheduler, run-vasp.sh need to be set accordingly
+    # write clean output to magman.out, while write everything to magman.log
+    (magman -j $MAX_NPROC -r -vvv | tee magman.out) 2>&1 | tee magman.log
     
+    # step 3: when magman done, kill background services
     sleep 1
     pkill gosh-remote
-    # or better
+    # could be better if using mpirun?
     # mpirun pkill gosh-remote
 
 
