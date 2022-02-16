@@ -144,24 +144,41 @@ impl ServerCli {
 // 674c2404 ends here
 
 // [[file:../remote.note::001e63a1][001e63a1]]
-use mpi::Mpi;
-
 /// Start scheduler and worker services automatically when run in MPI
 /// environment (to be called with mpirun command)
 #[derive(StructOpt)]
-struct MpiCli {
+struct BootstrapCli {
     /// The scheduler address will be wrote into `address_file`
     #[structopt(short = 'w', default_value = GOSH_SCHEDULER_FILE)]
     address_file: PathBuf,
 
     #[structopt(long, default_value = "2.0")]
     timeout: f64,
+
+    /// The server mode to start.
+    #[clap(arg_enum)]
+    mode: ServerMode,
 }
 
-impl MpiCli {
+impl BootstrapCli {
     async fn enter_main(&self) -> Result<()> {
-        if let Err(err) = run_scheduler_or_worker_dwim(&self.address_file, self.timeout).await {
-            debug!("{err:?}");
+        let node = hostname();
+        let address = default_server_address();
+        let address_file = self.address_file.to_owned();
+        let timeout = self.timeout;
+        match self.mode {
+            ServerMode::AsScheduler => {
+                info!("install scheduler on {node}");
+                let _lock = LockFile::new(&address_file, &address)?;
+                ServerCli::run_as_scheduler(address).await?;
+            }
+            ServerMode::AsWorker => {
+                info!("install worker on {node}");
+                let o = read_scheduler_address_from_lock_file(&address_file, timeout)?;
+                // tell the scheduler add this worker
+                crate::client::Client::connect(o).add_node(&address)?;
+                ServerCli::run_as_worker(address).await?;
+            }
         }
         Ok(())
     }
@@ -231,8 +248,7 @@ struct Cli {
 enum RemoteCommand {
     Client(ClientCli),
     Server(ServerCli),
-    #[clap(name = "mpi-bootstrap")]
-    Mpi(MpiCli),
+    Bootstrap(BootstrapCli),
 }
 
 pub async fn remote_enter_main() -> Result<()> {
@@ -247,8 +263,8 @@ pub async fn remote_enter_main() -> Result<()> {
             debug!("Run VASP for interactive calculation ...");
             server.enter_main().await?;
         }
-        RemoteCommand::Mpi(mpi) => {
-            mpi.enter_main().await?;
+        RemoteCommand::Bootstrap(bootstrap) => {
+            bootstrap.enter_main().await?;
         }
     }
 
