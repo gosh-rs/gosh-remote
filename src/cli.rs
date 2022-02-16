@@ -187,47 +187,8 @@ impl BootstrapCli {
 fn default_server_address() -> String {
     match get_free_tcp_address().expect("tcp address") {
         std::net::SocketAddr::V4(addr) => addr.to_string(),
-        std::net::SocketAddr::V6(addr) => panic!("IPV6 is not supported"),
+        std::net::SocketAddr::V6(_) => panic!("IPV6 is not supported"),
     }
-}
-
-/// Run scheduler or worker according to MPI local rank ID
-async fn run_scheduler_or_worker_dwim(scheduler_address_file: &Path, timeout: f64) -> Result<()> {
-    let node = hostname();
-    let mpi = Mpi::try_from_env().ok_or(format_err!("no mpi env"))?;
-
-    let i = mpi.global_rank;
-    let j = mpi.local_rank;
-    let m = mpi.global_size;
-    let n = mpi.local_size;
-    debug!("Found {m} global ranks, {n} local ranks on node {node}");
-
-    let rank = format!("global rank {i} of {m} (local rank {j} of {n})");
-    let address = default_server_address();
-    match (i, j) {
-        // install scheduler using rank 0
-        (0, 0) => {
-            info!("{rank}: install scheduler on {node}");
-            // let address = format!("{node}:3030");
-            let address_file = scheduler_address_file.to_owned();
-            let _lock = LockFile::new(&address_file, &address)?;
-            ServerCli::run_as_scheduler(address).await?;
-        }
-        // install worker using other rank
-        (_, j) => {
-            info!("{rank}: install worker on {node}");
-            // let lock_file: PathBuf = format!("gosh-remote-worker-{node}-rank{i}.lock").into();
-            // NOTE: scheduler need to be ready for worker connection
-            gut::utils::sleep(0.5);
-            // let _lock = LockFile::new(&lock_file, &address)?;
-            let o = read_scheduler_address_from_lock_file(scheduler_address_file, timeout)?;
-            // tell the scheduler add this worker
-            crate::client::Client::connect(o).add_node(&address)?;
-            ServerCli::run_as_worker(address).await?;
-        }
-    }
-
-    Ok(())
 }
 // 001e63a1 ends here
 

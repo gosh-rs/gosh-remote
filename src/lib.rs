@@ -11,7 +11,6 @@ use gut::prelude::*;
 mod base;
 mod client;
 mod interactive;
-mod mpi;
 mod scheduler;
 mod server;
 mod worker;
@@ -38,7 +37,7 @@ use std::net::{SocketAddr, TcpListener, ToSocketAddrs};
 pub fn address_available<A: ToSocketAddrs>(address: A) -> bool {
     match TcpListener::bind(address) {
         Ok(_) => true,
-        Err(e) => false,
+        Err(_) => false,
     }
 }
 
