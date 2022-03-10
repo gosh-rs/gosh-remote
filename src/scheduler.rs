@@ -15,6 +15,7 @@ impl Client {
         let wrk_dir = wrk_dir.shell_escape_lossy();
         #[rustfmt::skip]
         let script = format!("#! /usr/bin/env bash
+set -x
 cd {wrk_dir}
 {cmd}
 ");

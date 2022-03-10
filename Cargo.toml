@@ -6,8 +6,8 @@ edition = "2021"
 authors = ["Wenping Guo <ybyygu@gmail.com>"]
 
 [dependencies]
-gosh-core = { version = ">=0.0.2", features=["adhoc"] }
-gosh-runner = { version = ">=0.0.10", features=["adhoc"] }
+gosh-core = { version = "0.1", features=["adhoc"] }
+gosh-runner = { version = "0.1", features=["adhoc"] }
 rand = "0.8"
 serde = {version="1.0", features = ["derive"]}
 serde_json = "1.0"
