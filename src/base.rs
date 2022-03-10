@@ -316,6 +316,7 @@ impl Computation {
 // f8672e0c ends here
 
 // [[file:../remote.note::9b7911ae][9b7911ae]]
+/// A singleton pattern based on file locking
 #[derive(Debug)]
 pub struct LockFile {
     file: std::fs::File,
@@ -334,7 +335,7 @@ impl LockFile {
 
         // https://docs.rs/fs2/0.4.3/fs2/trait.FileExt.html
         file.try_lock_exclusive()
-            .context("Could not lock ID file; Is the daemon already running?")?;
+            .context("Could not lock lock file; Is the instance already running?")?;
 
         Ok(LockFile {
             file,
@@ -343,11 +344,11 @@ impl LockFile {
     }
 
     fn write_msg(&mut self, msg: &str) -> Result<()> {
-        writeln!(&mut self.file, "{msg}").context("Could not write ID file")?;
-        self.file.flush().context("Could not flush ID file")
+        writeln!(&mut self.file, "{msg}").context("Could not write lock file")?;
+        self.file.flush().context("Could not flush lock file")
     }
 
-    /// Create a lockfile for process `pid`
+    /// Create a lockfile contains text `msg`
     pub fn new(path: &Path, msg: &str) -> Result<Self> {
         let mut lockfile = Self::create(path)?;
         lockfile.write_msg(msg)?;

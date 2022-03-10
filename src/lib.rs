@@ -13,6 +13,7 @@ mod client;
 mod interactive;
 mod scheduler;
 mod server;
+pub mod task;
 mod worker;
 
 pub mod cli;
@@ -53,6 +54,10 @@ fn test_addr() {
     assert!(address_available(dbg!(addr)));
 }
 // 92bf67b7 ends here
+
+// [[file:../remote.note::0a725e9c][0a725e9c]]
+pub use base::LockFile;
+// 0a725e9c ends here
 
 // [[file:../remote.note::56d334b5][56d334b5]]
 #[cfg(feature = "adhoc")]
