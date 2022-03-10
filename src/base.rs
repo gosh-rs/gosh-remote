@@ -330,9 +330,9 @@ impl LockFile {
     }
 
     /// Create a lockfile contains text `msg`
-    pub fn new(path: &Path, msg: &str) -> Result<Self> {
+    pub fn new(path: &Path, msg: impl std::fmt::Display) -> Result<Self> {
         let mut lockfile = Self::create(path)?;
-        lockfile.write_msg(msg)?;
+        lockfile.write_msg(&msg.to_string())?;
         Ok(lockfile)
     }
 
