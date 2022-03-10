@@ -2,7 +2,6 @@
 use super::*;
 use gut::cli::*;
 use gut::fs::*;
-use base::wait_file;
 
 pub use gut::prelude::*;
 // 3a532d42 ends here
@@ -12,7 +11,7 @@ const GOSH_SCHEDULER_FILE: &str = "gosh-remote-scheduler.lock";
 
 fn read_scheduler_address_from_lock_file(scheduler_address_file: &Path, timeout: f64) -> Result<String> {
     debug!("reading scheduler address from file: {scheduler_address_file:?}");
-    wait_file(scheduler_address_file, timeout)?;
+    LockFile::wait(scheduler_address_file, timeout)?;
     let o = gut::fs::read_file(scheduler_address_file)?.trim().to_string();
     Ok(o)
 }

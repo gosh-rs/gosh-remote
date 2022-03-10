@@ -2,33 +2,6 @@
 use super::*;
 // fed8a9d3 ends here
 
-// [[file:../remote.note::49f269df][49f269df]]
-use gut::utils::sleep;
-
-/// Wait until file `f` available for max time of `timeout`.
-///
-/// # Parameters
-/// * timeout: timeout in seconds
-/// * f: the file to wait for available
-pub fn wait_file(f: &std::path::Path, timeout: f64) -> Result<()> {
-    // wait a moment for socke file ready
-    let interval = 0.1;
-    let mut t = 0.0;
-    loop {
-        if f.exists() {
-            trace!("Elapsed time during waiting: {:.2} seconds ", t);
-            return Ok(());
-        }
-        t += interval;
-        sleep(interval);
-
-        if t > timeout {
-            bail!("file {:?} doest exist for {} seconds", f, timeout);
-        }
-    }
-}
-// 49f269df ends here
-
 // [[file:../remote.note::50e6ed5a][50e6ed5a]]
 /// Represents a computational job inputted by user.
 #[derive(Debug, Deserialize, Serialize)]
@@ -238,7 +211,7 @@ impl Computation {
     fn create_run_file(&self) -> Result<()> {
         let run_file = &self.run_file();
         gut::fs::write_script_file(run_file, &self.job.script)?;
-        wait_file(&run_file, 2.0)?;
+        LockFile::wait(&run_file, 2.0)?;
 
         Ok(())
     }
@@ -289,8 +262,16 @@ impl Computation {
             .stderr(std::process::Stdio::piped())
             .spawn_session()?;
 
-        let mut stdout = session.child.stdout.take().expect("child did not have a handle to stdout");
-        let mut stderr = session.child.stderr.take().expect("child did not have a handle to stderr");
+        let mut stdout = session
+            .child
+            .stdout
+            .take()
+            .expect("child did not have a handle to stdout");
+        let mut stderr = session
+            .child
+            .stderr
+            .take()
+            .expect("child did not have a handle to stderr");
 
         // redirect stdout and stderr to files for user inspection.
         let mut fout = tokio::fs::File::create(self.out_file()).await?;
@@ -353,6 +334,31 @@ impl LockFile {
         let mut lockfile = Self::create(path)?;
         lockfile.write_msg(msg)?;
         Ok(lockfile)
+    }
+
+    /// Wait until file `f` available for max time of `timeout`.
+    ///
+    /// # Parameters
+    /// * timeout: timeout in seconds
+    /// * f: the file to wait for available
+    pub fn wait(f: &std::path::Path, timeout: f64) -> Result<()> {
+        use gut::utils::sleep;
+
+        // wait a moment for socke file ready
+        let interval = 0.1;
+        let mut t = 0.0;
+        loop {
+            if f.exists() {
+                trace!("Elapsed time during waiting: {:.2} seconds ", t);
+                return Ok(());
+            }
+            t += interval;
+            sleep(interval);
+
+            if t > timeout {
+                bail!("file {:?} doest exist for {} seconds", f, timeout);
+            }
+        }
     }
 }
 
