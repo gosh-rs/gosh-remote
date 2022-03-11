@@ -37,13 +37,22 @@ use std::marker::Send;
 
 // [[file:../remote.note::214790a9][214790a9]]
 type Computed<O> = O;
-type TxComputed<O> = oneshot::Sender<Computed<O>>;
+type TxInput<I, O> = mpsc::Sender<RemoteIO<I, O>>;
+
+/// The receiver of task for remote execution
+pub type RxInput<I, O> = mpsc::Receiver<RemoteIO<I, O>>;
+/// The sender of computational results.
+pub type TxOutput<O> = oneshot::Sender<Computed<O>>;
+
 /// RemoteIO contains input and output for remote execution. The first field in tuple
 /// is job input, and the second is for writing job output.
-pub type RemoteIO<I, O> = (I, TxComputed<O>);
-type TxInput<I, O> = mpsc::Sender<RemoteIO<I, O>>;
-/// The receiver of jobs for remote execution
-pub type RxInput<I, O> = mpsc::Receiver<RemoteIO<I, O>>;
+#[derive(Debug)]
+pub struct RemoteIO<I, O>(
+    /// Input data for starting computation
+    pub I,
+    /// A oneshot channel for send computational output.
+    pub TxOutput<O>,
+);
 // 214790a9 ends here
 
 // [[file:../remote.note::b55affa9][b55affa9]]
@@ -60,7 +69,7 @@ impl<I: Debug, O: Debug + Send> TaskSender<I, O> {
         self.tx_inp
             .as_ref()
             .expect("task input")
-            .send((input.into(), tx))
+            .send(RemoteIO(input.into(), tx))
             .await
             .map_err(|err| format_err!("task send error: {err:?}"))?;
         let computed = rx.await?;

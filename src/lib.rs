@@ -5,6 +5,8 @@
 // [[file:../remote.note::963f5eb8][963f5eb8]]
 use gosh_core::*;
 use gut::prelude::*;
+
+use std::path::{Path, PathBuf};
 // 963f5eb8 ends here
 
 // [[file:../remote.note::b21b77b4][b21b77b4]]
@@ -13,10 +15,11 @@ mod client;
 mod interactive;
 mod scheduler;
 mod server;
-pub mod task;
 mod worker;
 
 pub mod cli;
+pub mod rest;
+pub mod task;
 // b21b77b4 ends here
 
 // [[file:../remote.note::5c33a18a][5c33a18a]]
