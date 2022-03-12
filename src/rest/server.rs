@@ -30,11 +30,10 @@ async fn compute_mol(Json(mol): Json<Molecule>, client: Extension<State>) -> imp
 macro_rules! build_app_with_routes {
     ($state: expr) => {{
         use axum::routing::post;
-        use axum::AddExtensionLayer;
 
         axum::Router::new()
             .route("/mol", post(compute_mol))
-            .layer(AddExtensionLayer::new($state))
+            .layer(Extension($state))
     }};
 }
 // 59c3364a ends here
