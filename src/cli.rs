@@ -87,7 +87,7 @@ impl ClientCli {
 use base::LockFile;
 use server::Server;
 
-#[derive(Debug, Clone, ArgEnum)]
+#[derive(Debug, Clone, ValueEnum)]
 enum ServerMode {
     AsScheduler,
     AsWorker,
@@ -97,11 +97,11 @@ enum ServerMode {
 #[derive(Parser, Debug)]
 struct ServerCli {
     /// Bind on the address for providing remote execution service
-    #[clap(long)]
+    #[arg(long)]
     address: String,
 
     /// The server mode to start.
-    #[clap(arg_enum)]
+    #[arg(value_enum)]
     mode: ServerMode,
 }
 
@@ -145,17 +145,17 @@ impl ServerCli {
 // [[file:../remote.note::001e63a1][001e63a1]]
 /// Start scheduler and worker services automatically when run in MPI
 /// environment (to be called with mpirun command)
-#[derive(StructOpt)]
+#[derive(Parser)]
 struct BootstrapCli {
     /// The scheduler address will be wrote into `address_file`
-    #[structopt(short = 'w', default_value = GOSH_SCHEDULER_FILE)]
+    #[arg(short = 'w', default_value = GOSH_SCHEDULER_FILE)]
     address_file: PathBuf,
 
-    #[structopt(long, default_value = "2.0")]
+    #[arg(long, default_value = "2.0")]
     timeout: f64,
 
     /// The server mode to start.
-    #[clap(arg_enum)]
+    #[arg(value_enum)]
     mode: ServerMode,
 }
 

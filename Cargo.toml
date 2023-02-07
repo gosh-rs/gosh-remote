@@ -4,6 +4,11 @@ name = "gosh-remote"
 version = "0.1.0"
 edition = "2021"
 authors = ["Wenping Guo <ybyygu@gmail.com>"]
+description = "gchemol: a Graph-based CHEMical Objects Library"
+homepage = "https://github.com/gosh/gosh-remote"
+repository = "https://github.com/gosh/gosh-remote"
+license = "GPL-3.0"
+readme = "README.md"
 
 [dependencies]
 gosh-core = { version = "0.1", features=["adhoc"] }
@@ -15,7 +20,7 @@ serde_json = "1.0"
 # remote runner
 tokio = { version = "1", features = ["full"] }
 tokio-util = "0.6"
-clap = { version = "3.0.10", features = ["derive"] }
+clap = { version = "4", features = ["derive"] }
 tempfile = "3.3"
 # https://docs.rs/spmc/latest/spmc/
 axum = "0.4.6"

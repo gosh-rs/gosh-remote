@@ -6,6 +6,7 @@
 use gosh_core::*;
 use gut::prelude::*;
 
+use rand::Rng;
 use std::path::{Path, PathBuf};
 // 963f5eb8 ends here
 
