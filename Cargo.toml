@@ -1,19 +1,19 @@
 # [[file:remote.note::5bcb0b71][5bcb0b71]]
 [package]
 name = "gosh-remote"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Wenping Guo <ybyygu@gmail.com>"]
-description = "gchemol: a Graph-based CHEMical Objects Library"
-homepage = "https://github.com/gosh/gosh-remote"
-repository = "https://github.com/gosh/gosh-remote"
+description = "Distributed parallel computing over multiple nodes."
+homepage = "https://github.com/gosh-rs/gosh-remote"
+repository = "https://github.com/gosh-rs/gosh-remote"
 license = "GPL-3.0"
 readme = "README.md"
 
 [dependencies]
-gosh-core = { version = "0.1", features=["adhoc"] }
-gosh-model = { version = "0.1", features=["adhoc"] }
-gosh-runner = { version = "0.1", features=["adhoc"] }
+gosh-core = { version = "0.2", features=["adhoc"] }
+gosh-model = { version = "0.2", features=["adhoc"] }
+gosh-runner = { version = "0.2", features=["adhoc"] }
 rand = "0.8"
 serde = {version="1.0", features = ["derive"]}
 serde_json = "1.0"
