@@ -6,7 +6,6 @@
 use gosh_core::*;
 use gut::prelude::*;
 
-use rand::Rng;
 use std::path::{Path, PathBuf};
 // 963f5eb8 ends here
 
@@ -21,6 +20,14 @@ mod worker;
 pub mod cli;
 pub mod rest;
 pub mod task;
+
+// experimental
+mod jobhub;
+
+mod common {
+    pub use gosh_core::gut::prelude::*;
+    pub use gosh_core::*;
+}
 // b21b77b4 ends here
 
 // [[file:../remote.note::5c33a18a][5c33a18a]]

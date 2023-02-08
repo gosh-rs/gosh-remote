@@ -4,6 +4,7 @@ use super::*;
 
 // [[file:../remote.note::99dad0b0][99dad0b0]]
 /// Client of remote execution
+#[derive(Debug, Clone)]
 pub struct Client {
     client: reqwest::blocking::Client,
     service_uri: String,
