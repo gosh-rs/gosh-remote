@@ -1,28 +1,54 @@
 // [[file:../../remote.note::3d2c01c2][3d2c01c2]]
-use super::*;
+use super::Server;
 
 use axum::Json;
 use std::net::SocketAddr;
 // 3d2c01c2 ends here
 
+// [[file:../../remote.note::8be5152c][8be5152c]]
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
+
+// Make our own error that wraps `anyhow::Error`.
+struct AppError(Error);
+
+impl<E> From<E> for AppError
+where
+    E: Into<Error>,
+{
+    fn from(err: E) -> Self {
+        Self(err.into())
+    }
+}
+
+// Tell axum how to convert `AppError` into a response.
+impl IntoResponse for AppError {
+    fn into_response(self) -> Response {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Something went wrong: {}", self.0),
+        )
+            .into_response()
+    }
+}
+// 8be5152c ends here
+
 // [[file:../../remote.note::ad35d99c][ad35d99c]]
 // type State = std::sync::Arc<TaskSender>;
-type State = TaskSender;
+type TaskState = super::TaskSender;
 // ad35d99c ends here
 
 // [[file:../../remote.note::7157f9ad][7157f9ad]]
-use axum::extract::Extension;
-use axum::http::StatusCode;
-use axum::response::IntoResponse;
+use super::error;
+use super::Computed;
+use super::Error;
+use super::Molecule;
+use axum::extract::State;
 
-async fn compute_mol(Json(mol): Json<Molecule>, client: Extension<State>) -> impl IntoResponse {
-    match client.remote_compute(mol).await {
-        Ok(mp) => (StatusCode::OK, Json(mp)),
-        Err(err) => {
-            dbg!(err);
-            todo!();
-        }
-    }
+#[axum::debug_handler]
+async fn compute_mol(State(client): State<TaskState>, Json(mol): Json<Molecule>) -> Result<Json<Computed>, AppError> {
+    let computed = client.remote_compute(mol).await?;
+    Ok(Json(computed))
 }
 // 7157f9ad ends here
 
@@ -30,10 +56,7 @@ async fn compute_mol(Json(mol): Json<Molecule>, client: Extension<State>) -> imp
 macro_rules! build_app_with_routes {
     ($state: expr) => {{
         use axum::routing::post;
-
-        axum::Router::new()
-            .route("/mol", post(compute_mol))
-            .layer(Extension($state))
+        axum::Router::new().route("/mol", post(compute_mol)).with_state($state)
     }};
 }
 // 59c3364a ends here
@@ -70,7 +93,7 @@ impl Server {
     ///
     /// * addr: socket address to bind
     /// * state: shared state between route handlers
-    pub(super) async fn run_restful(addr: impl Into<SocketAddr>, state: State) {
+    pub(super) async fn run_restful(addr: impl Into<SocketAddr>, state: TaskState) {
         let app = build_app_with_routes!(state);
         let addr = addr.into();
 

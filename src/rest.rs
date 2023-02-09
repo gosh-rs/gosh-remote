@@ -7,12 +7,14 @@ use super::*;
 use gchemol::Molecule;
 use gosh_model::{ChemicalModel, Computed};
 use task::RemoteIO;
+// 3d2c01c2 ends here
 
+// [[file:../remote.note::ccbf3ca9][ccbf3ca9]]
 type Task = task::Task<Molecule, Computed>;
 type TaskReceiver = task::TaskReceiver<Molecule, Computed>;
 type TaskSender = task::TaskSender<Molecule, Computed>;
 type TxOutput = task::TxOutput<Computed>;
-// 3d2c01c2 ends here
+// ccbf3ca9 ends here
 
 // [[file:../remote.note::aa8d1d68][aa8d1d68]]
 mod client;
