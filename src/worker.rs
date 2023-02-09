@@ -15,7 +15,7 @@ pub enum ComputationResult {
 }
 
 impl ComputationResult {
-    fn parse_from_json(x: &str) -> Result<Self> {
+    pub(crate) fn parse_from_json(x: &str) -> Result<Self> {
         let computed = serde_json::from_str(&x).with_context(|| format!("invalid json str: {x:?}"))?;
         Ok(computed)
     }

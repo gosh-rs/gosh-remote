@@ -47,8 +47,14 @@ mod filters {
 
     /// Handle request for adding a new node into `Nodes`
     async fn add_job(job: Job, mut task: TaskClient) -> Result<impl warp::Reply, warp::Rejection> {
-        let o = format!("{:?}", task.interact(job).await);
-        Ok(warp::reply::json(&o))
+        use crate::worker::ComputationResult;
+
+        // FIXME: do not know how to return warp error
+        let r = task.interact(job).await;
+        match r.and_then(|r| ComputationResult::parse_from_json(&r)) {
+            Ok(o) => Ok(warp::reply::json(&o)),
+            Err(e) => Ok(warp::reply::json(&format!("{e:?}"))),
+        }
     }
 
     /// POST /nodes with JSON body
