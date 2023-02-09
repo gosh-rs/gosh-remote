@@ -7,6 +7,8 @@ use std::path::{Path, PathBuf};
 // c67d342c ends here
 
 // [[file:../remote.note::a3bb4770][a3bb4770]]
+use gosh_model::Computed;
+
 /// A job hub for parallel running of multiple jobs over remote
 /// computational nodes
 pub struct JobHub {
@@ -45,12 +47,21 @@ impl JobHub {
         self.jobs.len() - 1
     }
 
-    /// Add a new job into job hub for scheduling.
+    /// Return raw output for job `jobid`.
     pub fn get_job_out(&mut self, jobid: usize) -> Result<String> {
         match self.job_results.get(jobid).unwrap() {
             Err(e) => bail!("job {jobid} failed with error: {e:?}"),
             Ok(r) => Ok(r.to_owned()),
         }
+    }
+
+    /// Return `Computed` for job output for `jobid`.
+    pub fn get_computed_from_job_out(&mut self, jobid: usize) -> Result<Computed> {
+        use crate::worker::ComputationResult;
+
+        let s = self.get_job_out(jobid)?;
+        let o = ComputationResult::get_computed_from_str(&s)?;
+        Ok(o)
     }
 
     /// Run all scheduled jobs with nodes in pool.
