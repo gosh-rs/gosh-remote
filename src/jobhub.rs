@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 pub struct JobHub {
     client: Client,
     jobs: Vec<(String, PathBuf)>,
+    job_results: Vec<Result<String>>,
 }
 
 impl JobHub {
@@ -19,7 +20,11 @@ impl JobHub {
     /// `scheduler_address`.
     pub fn new(scheduler_address: &str) -> Self {
         let client = Client::connect(&scheduler_address);
-        Self { client, jobs: vec![] }
+        Self {
+            client,
+            jobs: vec![],
+            job_results: vec![],
+        }
     }
 
     /// Return the number of parallel threads.
@@ -27,28 +32,34 @@ impl JobHub {
         rayon::current_num_threads()
     }
 
-    /// Set up number of threads for parallel run.
-    pub fn set_num_threads(n: usize) -> Result<()> {
-        rayon::ThreadPoolBuilder::new().num_threads(n).build_global()?;
-        Ok(())
+    // FIXME: do not work, as already set
+    // /// Set up number of threads for parallel run.
+    // pub fn set_num_threads(n: usize) -> Result<()> {
+    //     rayon::ThreadPoolBuilder::new().num_threads(n).build_global()?;
+    //     Ok(())
+    // }
+
+    /// Add a new job into job hub for scheduling.
+    pub fn add_job(&mut self, cmd: String) -> usize {
+        self.jobs.push((cmd, ".".into()));
+        self.jobs.len() - 1
     }
 
     /// Add a new job into job hub for scheduling.
-    pub fn add_job(&mut self, cmd: String) {
-        self.jobs.push((cmd, ".".into()));
+    pub fn get_job_out(&mut self, jobid: usize) -> Result<String> {
+        match self.job_results.get(jobid).unwrap() {
+            Err(e) => bail!("job {jobid} failed with error: {e:?}"),
+            Ok(r) => Ok(r.to_owned()),
+        }
     }
 
     /// Run all scheduled jobs with nodes in pool.
     pub fn run(&mut self) -> Result<()> {
-        let results: Vec<_> = self
+        self.job_results = self
             .jobs
             .par_iter()
             .map(|(cmd, wrk_dir)| self.client.clone().run_cmd(&cmd, &wrk_dir))
             .collect();
-
-        for (i, x) in results.iter().enumerate() {
-            println!("job {i}: {x:?}");
-        }
 
         // clear pending jobs
         self.jobs.clear();

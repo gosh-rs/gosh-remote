@@ -6,10 +6,31 @@ use warp::Filter;
 // b8081727 ends here
 
 // [[file:../remote.note::08048436][08048436]]
+use gosh_model::Computed;
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-enum ComputationResult {
+pub enum ComputationResult {
     JobCompleted(String),
     JobFailed(String),
+}
+
+impl ComputationResult {
+    fn parse_from_json(x: &str) -> Result<Self> {
+        let computed = serde_json::from_str(&x).with_context(|| format!("invalid json str: {x:?}"))?;
+        Ok(computed)
+    }
+
+    pub fn get_computed_from_str(s: &str) -> Result<Computed> {
+        match Self::parse_from_json(s)? {
+            Self::JobCompleted(s) => {
+                let computed = s.parse()?;
+                Ok(computed)
+            }
+            Self::JobFailed(s) => {
+                bail!("job failed with error message:\n{s:?}");
+            }
+        }
+    }
 }
 // 08048436 ends here
 
