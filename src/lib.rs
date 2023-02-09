@@ -68,6 +68,8 @@ fn test_addr() {
 
 // [[file:../remote.note::0a725e9c][0a725e9c]]
 pub use base::LockFile;
+
+pub use jobhub::JobHub;
 // 0a725e9c ends here
 
 // [[file:../remote.note::56d334b5][56d334b5]]
@@ -85,5 +87,6 @@ pub mod docs {
     export_doc!(base);
     export_doc!(interactive);
     export_doc!(worker);
+    export_doc!(jobhub);
 }
 // 56d334b5 ends here

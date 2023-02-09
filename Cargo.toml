@@ -1,7 +1,7 @@
 # [[file:remote.note::5bcb0b71][5bcb0b71]]
 [package]
 name = "gosh-remote"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 authors = ["Wenping Guo <ybyygu@gmail.com>"]
 description = "Distributed parallel computing over multiple nodes."

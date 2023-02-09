@@ -1,5 +1,4 @@
 // [[file:../remote.note::c67d342c][c67d342c]]
-use crate::base::{Job, Node};
 use crate::client::Client;
 use crate::common::*;
 use gut::rayon;
@@ -34,28 +33,25 @@ impl JobHub {
         Ok(())
     }
 
-    /// Add a new node into node pool for execution.
-    pub fn add_node(&mut self, node: Node) -> Result<()> {
-        self.client.add_node(node)?;
-        Ok(())
-    }
-
     /// Add a new job into job hub for scheduling.
-    pub fn add_job(&mut self, cmd: String, wrk_dir: PathBuf) {
-        self.jobs.push((cmd, wrk_dir));
+    pub fn add_job(&mut self, cmd: String) {
+        self.jobs.push((cmd, ".".into()));
     }
 
     /// Run all scheduled jobs with nodes in pool.
-    pub fn run(mut self) -> Result<()> {
+    pub fn run(&mut self) -> Result<()> {
         let results: Vec<_> = self
             .jobs
-            .into_par_iter()
+            .par_iter()
             .map(|(cmd, wrk_dir)| self.client.clone().run_cmd(&cmd, &wrk_dir))
             .collect();
 
         for (i, x) in results.iter().enumerate() {
             println!("job {i}: {x:?}");
         }
+
+        // clear pending jobs
+        self.jobs.clear();
 
         Ok(())
     }
