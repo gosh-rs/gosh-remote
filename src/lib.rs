@@ -12,10 +12,12 @@ use std::path::{Path, PathBuf};
 // [[file:../remote.note::b21b77b4][b21b77b4]]
 mod base;
 mod client;
+mod comput;
 mod interactive;
 mod scheduler;
 mod server;
 mod worker;
+mod worker_axum;
 
 pub mod cli;
 pub mod rest;

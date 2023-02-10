@@ -111,7 +111,7 @@ impl ServerCli {
         match self.mode {
             ServerMode::AsScheduler => {
                 println!("Start scheduler serivce at {address:?}");
-                Server::serve_as_scheduler(address).await;
+                Server::serve_as_scheduler_axum(address).await;
             }
             ServerMode::AsWorker => {
                 println!("Start worker serivce at {address:?}");

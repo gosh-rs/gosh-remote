@@ -18,7 +18,7 @@ type TxOutput = task::TxOutput<Computed>;
 
 // [[file:../remote.note::aa8d1d68][aa8d1d68]]
 mod client;
-mod server;
+pub(crate) mod server;
 // aa8d1d68 ends here
 
 // [[file:../remote.note::285a8db0][285a8db0]]

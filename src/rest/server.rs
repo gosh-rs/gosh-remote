@@ -10,7 +10,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 
 // Make our own error that wraps `anyhow::Error`.
-struct AppError(Error);
+pub(crate) struct AppError(Error);
 
 impl<E> From<E> for AppError
 where
