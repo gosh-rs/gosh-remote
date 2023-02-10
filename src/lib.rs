@@ -33,12 +33,7 @@ mod common {
 // [[file:../remote.note::5c33a18a][5c33a18a]]
 /// Return system host name
 fn hostname() -> String {
-    let mut buf = [0u8; 512];
-    nix::unistd::gethostname(&mut buf)
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string()
+    nix::unistd::gethostname().unwrap().to_str().unwrap().to_string()
 }
 // 5c33a18a ends here
 
