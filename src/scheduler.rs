@@ -1,17 +1,16 @@
-// [[file:../remote.note::ec61676b][ec61676b]]
+// [[file:../remote.note::c07df478][c07df478]]
 use super::*;
 
 use base::{Job, Node};
-use server::Server;
-// ec61676b ends here
+// c07df478 ends here
 
-// [[file:../remote.note::568e244d][568e244d]]
-use client::Client;
+// [[file:../remote.note::6730a02b][6730a02b]]
+use crate::client::Client;
 use std::path::Path;
 
 impl Client {
     /// Request server to run `cmd` in directory `wrk_dir`.
-    pub fn run_cmd(&self, cmd: &str, wrk_dir: &Path) -> Result<String> {
+    pub fn run_cmd_axum(&self, cmd: &str, wrk_dir: &Path) -> Result<String> {
         let wrk_dir = wrk_dir.shell_escape_lossy();
         #[rustfmt::skip]
         let script = format!("#! /usr/bin/env bash
@@ -26,65 +25,66 @@ cd {wrk_dir}
     }
 
     /// Request server to add a new node for remote computation.
-    pub fn add_node(&self, node: impl Into<Node>) -> Result<()> {
+    pub fn add_node_axum(&self, node: impl Into<Node>) -> Result<()> {
         self.post("nodes", node.into())?;
         Ok(())
     }
 }
-// 568e244d ends here
+// 6730a02b ends here
 
-// [[file:../remote.note::9f3b28d3][9f3b28d3]]
-mod filters {
+// [[file:../remote.note::dec20ace][dec20ace]]
+mod routes {
     use super::*;
+    use crate::rest::server::AppError;
+    use crate::worker::ComputationResult;
     use interactive::TaskClient;
-    use warp::Filter;
+
+    use axum::extract::State;
+    use axum::Json;
 
     /// Handle request for adding a new node into `Nodes`
-    async fn add_node(node: Node, task: TaskClient) -> Result<impl warp::Reply, warp::Rejection> {
-        let o = format!("{:?}", task.add_node(node).await);
-        Ok(warp::reply::json(&o))
+    #[axum::debug_handler]
+    async fn add_node(State(task): State<TaskClient>, Json(node): Json<Node>) -> Result<(), AppError> {
+        task.add_node(node).await?;
+        Ok(())
     }
 
     /// Handle request for adding a new node into `Nodes`
-    async fn add_job(job: Job, mut task: TaskClient) -> Result<impl warp::Reply, warp::Rejection> {
-        use crate::worker::ComputationResult;
-
-        // FIXME: do not know how to return warp error
-        let r = task.interact(job).await;
-        match r.and_then(|r| ComputationResult::parse_from_json(&r)) {
-            Ok(o) => Ok(warp::reply::json(&o)),
-            Err(e) => Ok(warp::reply::json(&format!("{e:?}"))),
-        }
+    #[axum::debug_handler]
+    async fn add_job(
+        State(mut task): State<TaskClient>,
+        Json(job): Json<Job>,
+    ) -> Result<Json<ComputationResult>, AppError> {
+        let r = task.interact(job).await?;
+        let c = ComputationResult::parse_from_json(&r)?;
+        Ok(Json(c))
     }
 
-    /// POST /nodes with JSON body
-    pub fn api(task: TaskClient) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-        let db = warp::any().map(move || task.clone());
-        let jobs = warp::path!("jobs")
-            .and(warp::post())
-            .and(warp::body::json())
-            .and(db.clone())
-            .and_then(add_job);
-        let nodes = warp::path!("nodes")
-            .and(warp::post())
-            .and(warp::body::json())
-            .and(db.clone())
-            .and_then(add_node);
+    pub(super) async fn run_restful(addr: impl Into<SocketAddr>, state: TaskClient) -> Result<()> {
+        use axum::routing::post;
 
-        jobs.or(nodes)
+        let app = axum::Router::new()
+            .route("/jobs", post(add_job))
+            .with_state(state.clone())
+            .route("/nodes", post(add_node))
+            .with_state(state);
+        let addr = addr.into();
+
+        let x = axum::Server::bind(&addr).serve(app.into_make_service()).await?;
+        Ok(())
     }
 }
-// 9f3b28d3 ends here
+// dec20ace ends here
 
 // [[file:../remote.note::63fb876f][63fb876f]]
 use base::Nodes;
+use server::Server;
 
 impl Server {
-    pub async fn serve_as_scheduler(addr: &str) {
+    pub async fn serve_as_scheduler_axum(addr: &str) {
         println!("listening on {addr:?}");
-        let (mut task_server, task_client) = interactive::new_interactive_task();
+        let (mut task_server, task_client) = crate::interactive::new_interactive_task();
         let nodes: Vec<String> = vec![];
-        // let h1 = task_server.run_and_serve(nodes);
         let h1 = tokio::spawn(async move {
             if let Err(e) = task_server.run_and_serve(Nodes::new(nodes)).await {
                 error!("task server: {e:?}");
@@ -93,9 +93,9 @@ impl Server {
         tokio::pin!(h1);
 
         let server = Self::new(addr);
-        let api = filters::api(task_client.clone());
+        let tc = task_client.clone();
         let h2 = tokio::spawn(async move {
-            warp::serve(api).run(server.address).await;
+            self::routes::run_restful(server.address, tc).await;
         });
         tokio::pin!(h2);
 
@@ -116,11 +116,8 @@ impl Server {
                 }
             }
         }
-        log_dbg!();
         h1.abort();
-        log_dbg!();
         h2.abort();
-        log_dbg!();
     }
 }
 // 63fb876f ends here

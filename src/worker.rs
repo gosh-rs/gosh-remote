@@ -1,11 +1,9 @@
-// [[file:../remote.note::b8081727][b8081727]]
+// [[file:../remote.note::4b6cf6fa][4b6cf6fa]]
 use super::*;
 use base::{Job, Node};
+// 4b6cf6fa ends here
 
-use warp::Filter;
-// b8081727 ends here
-
-// [[file:../remote.note::08048436][08048436]]
+// [[file:../remote.note::0688d573][0688d573]]
 use gosh_model::Computed;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -32,54 +30,43 @@ impl ComputationResult {
         }
     }
 }
-// 08048436 ends here
+// 0688d573 ends here
 
-// [[file:../remote.note::07c5146c][07c5146c]]
+// [[file:../remote.note::a2266f5f][a2266f5f]]
 mod handlers {
     use super::*;
+    use crate::rest::server::AppError;
+    use axum::Json;
 
     /// Run `job` locally and return stdout on success.
-    pub async fn create_job(job: Job) -> Result<impl warp::Reply, warp::Rejection> {
+    #[axum::debug_handler]
+    pub(super) async fn create_job(Json(job): Json<Job>) -> Result<Json<ComputationResult>, AppError> {
         match job.submit() {
             Ok(mut comput) => match comput.wait_for_output().await {
                 Ok(out) => {
                     let ret = ComputationResult::JobCompleted(out);
                     debug!("computation done with: {ret:?}");
-                    Ok(warp::reply::json(&ret))
+                    Ok(Json(ret))
                 }
                 Err(err) => {
                     let msg = format!("{err:?}");
                     let ret = ComputationResult::JobFailed(msg);
                     debug!("computation failed with: {ret:?}");
-                    Ok(warp::reply::json(&ret))
+                    Ok(Json(ret))
                 }
             },
             Err(err) => {
                 let msg = format!("failed to create job: {err:?}");
                 error!("{msg}");
                 let ret = ComputationResult::JobFailed(msg);
-                Ok(warp::reply::json(&ret))
+                Ok(Json(ret))
             }
         }
     }
 }
-// 07c5146c ends here
+// a2266f5f ends here
 
-// [[file:../remote.note::a5b61fa9][a5b61fa9]]
-mod filters {
-    use super::*;
-
-    /// POST /jobs with JSON body
-    pub async fn jobs() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-        warp::path!("jobs")
-            .and(warp::post())
-            .and(warp::body::json())
-            .and_then(handlers::create_job)
-    }
-}
-// a5b61fa9 ends here
-
-// [[file:../remote.note::e324852d][e324852d]]
+// [[file:../remote.note::d6f1b9d7][d6f1b9d7]]
 use client::Client;
 
 /// Submit job remotely using REST api service
@@ -98,50 +85,30 @@ impl RemoteComputation {
 
 impl Job {
     /// Remote submission using RESTful service
-    pub fn submit_remote(self, node: &Node) -> Result<RemoteComputation> {
+    pub fn submit_remote_axum(self, node: &Node) -> Result<RemoteComputation> {
         let client = Client::connect(node);
         let comput = RemoteComputation { job: self, client };
 
         Ok(comput)
     }
 }
-// e324852d ends here
+// d6f1b9d7 ends here
 
-// [[file:../remote.note::62b9ac23][62b9ac23]]
+// [[file:../remote.note::9407c3be][9407c3be]]
 impl server::Server {
     /// Serve as a worker running on local node.
-    pub async fn serve_as_worker(addr: &str) -> Result<()> {
-        let server = Self::new(addr);
-        let api = filters::jobs().await;
-        server.serve_api(api).await?;
-        Ok(())
-    }
+    pub async fn serve_as_worker_axum(addr: &str) -> Result<()> {
+        use self::handlers::create_job;
+        use axum::routing::post;
 
-    /// Serve warp api service
-    async fn serve_api<F>(&self, api: F) -> Result<()>
-    where
-        F: Filter + Clone + Send + Sync + 'static,
-        F::Extract: warp::Reply,
-    {
-        let (tx, rx) = tokio::sync::oneshot::channel();
-        let services = warp::serve(api.with(warp::log("gosh-remote")));
-        let (addr, server) = services.try_bind_with_graceful_shutdown(self.address, async {
-            rx.await.ok();
-        })?;
         println!("listening on {addr:?}");
-
-        let ctrl_c = tokio::signal::ctrl_c();
-        tokio::select! {
-            _ = server => {
-                eprintln!("server closed");
-            }
-            _ = ctrl_c => {
-                let _ = tx.send(());
-                eprintln!("user interruption");
-            }
-        }
+        let server = Self::new(addr);
+        let app = axum::Router::new().route("/jobs", post(create_job));
+        let x = axum::Server::bind(&server.address)
+            .serve(app.into_make_service())
+            .await?;
 
         Ok(())
     }
 }
-// 62b9ac23 ends here
+// 9407c3be ends here

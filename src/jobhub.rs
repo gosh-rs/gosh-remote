@@ -69,7 +69,7 @@ impl JobHub {
         self.job_results = self
             .jobs
             .par_iter()
-            .map(|(cmd, wrk_dir)| self.client.clone().run_cmd(&cmd, &wrk_dir))
+            .map(|(cmd, wrk_dir)| self.client.clone().run_cmd_axum(&cmd, &wrk_dir))
             .collect();
 
         // clear pending jobs

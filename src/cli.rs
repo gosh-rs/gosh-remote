@@ -70,11 +70,11 @@ impl ClientCli {
         match self.action {
             ClientAction::Run(run) => {
                 let wrk_dir = run.wrk_dir.canonicalize()?;
-                let o = client.run_cmd(&run.cmd, &wrk_dir)?;
+                let o = client.run_cmd_axum(&run.cmd, &wrk_dir)?;
                 println!("{o}");
             }
             ClientAction::AddNode { node } => {
-                client.add_node(&node)?;
+                client.add_node_axum(&node)?;
             }
         }
 
@@ -115,7 +115,7 @@ impl ServerCli {
             }
             ServerMode::AsWorker => {
                 println!("Start worker serivce at {address:?}");
-                Server::serve_as_worker(address).await?;
+                Server::serve_as_worker_axum(address).await?;
             }
         }
 
@@ -175,7 +175,7 @@ impl BootstrapCli {
                 info!("install worker on {node}");
                 let o = read_scheduler_address_from_lock_file(&address_file, timeout)?;
                 // tell the scheduler add this worker
-                crate::client::Client::connect(o).add_node(&address)?;
+                crate::client::Client::connect(o).add_node_axum(&address)?;
                 ServerCli::run_as_worker(address).await?;
             }
         }

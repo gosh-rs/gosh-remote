@@ -62,7 +62,8 @@ macro_rules! build_app_with_routes {
 // 59c3364a ends here
 
 // [[file:../../remote.note::415dc72b][415dc72b]]
-async fn shutdown_signal() {
+/// Handle unix/linux signals for graceful shutdown of server
+pub async fn shutdown_signal() {
     use tokio::signal;
 
     let ctrl_c = async {

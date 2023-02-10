@@ -78,8 +78,9 @@ impl Server {
 // 389c909a ends here
 
 // [[file:../remote.note::908a93c5][908a93c5]]
-pub use client::Client;
+pub use self::client::Client;
 
 /// A server for molecule computations allows interaction with RESTful web services.
 pub struct Server;
+pub use self::server::shutdown_signal;
 // 908a93c5 ends here
