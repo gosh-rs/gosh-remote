@@ -29,6 +29,13 @@ cd {wrk_dir}
         self.post("nodes", node.into()).await?;
         Ok(())
     }
+
+    #[tokio::main()]
+    /// For non-async call
+    pub async fn run_cmd_block(&self, cmd: &str, wrk_dir: &Path) -> Result<String> {
+        let s = self.run_cmd(cmd, wrk_dir).await?;
+        Ok(s)
+    }
 }
 // 6730a02b ends here
 

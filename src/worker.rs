@@ -95,19 +95,17 @@ impl Job {
 // d6f1b9d7 ends here
 
 // [[file:../remote.note::9407c3be][9407c3be]]
+use axum::Router;
+
 impl server::Server {
     /// Serve as a worker running on local node.
     pub async fn serve_as_worker(addr: &str) -> Result<()> {
-        use self::handlers::create_job;
         use crate::rest::shutdown_signal;
-        use axum::routing::post;
 
         println!("listening on {addr:?}");
         let server = Self::new(addr);
-        let app = axum::Router::new().route("/jobs", post(create_job));
-
         let signal = shutdown_signal();
-        let server = axum::Server::bind(&server.address).serve(app.into_make_service());
+        let server = axum::Server::bind(&server.address).serve(app().into_make_service());
         let (tx, rx) = tokio::sync::oneshot::channel();
         tokio::select! {
             _ = server => {
@@ -121,5 +119,12 @@ impl server::Server {
 
         Ok(())
     }
+}
+
+fn app() -> Router {
+    use self::handlers::create_job;
+    use axum::routing::post;
+
+    Router::new().route("/jobs", post(create_job))
 }
 // 9407c3be ends here

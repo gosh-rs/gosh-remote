@@ -131,7 +131,6 @@ mod server {
             for i in 0.. {
                 // make sure run in parallel
                 let mut join_handler = {
-                    log_dbg!();
                     let jobs = rx_jobs.clone();
                     let nodes = nodes.clone();
                     tokio::spawn(async move {
@@ -139,17 +138,14 @@ mod server {
                         info!("task {i}: wait for remote node to compute incoming job");
                         info!("task {i}: we have {n} nodes available for computations");
                         borrow_node_and_compute(nodes, jobs).await;
-                        log_dbg!();
                     })
                 };
-                log_dbg!();
                 // handle logic in main thread
                 tokio::select! {
                     Ok(_) = &mut join_handler => {
                         log_dbg!();
                     }
                     Some(int) = rx_int.recv() => {
-                        log_dbg!();
                         let Interaction(job, tx_resp) = int;
                         tx_jobs.send((job, tx_resp))?;
                     }
@@ -161,9 +157,7 @@ mod server {
                                 nodes.return_node(node.into())?;
                             }
                             Control::Abort => {
-                                log_dbg!();
                                 join_handler.abort();
-                                log_dbg!();
                                 break;
                             },
                         }
