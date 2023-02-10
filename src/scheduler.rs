@@ -5,12 +5,12 @@ use base::{Job, Node};
 // c07df478 ends here
 
 // [[file:../remote.note::6730a02b][6730a02b]]
-use crate::client::Client;
+use crate::Client;
 use std::path::Path;
 
 impl Client {
     /// Request server to run `cmd` in directory `wrk_dir`.
-    pub fn run_cmd(&self, cmd: &str, wrk_dir: &Path) -> Result<String> {
+    pub async fn run_cmd(&self, cmd: &str, wrk_dir: &Path) -> Result<String> {
         let wrk_dir = wrk_dir.shell_escape_lossy();
         #[rustfmt::skip]
         let script = format!("#! /usr/bin/env bash
@@ -19,14 +19,14 @@ cd {wrk_dir}
 {cmd}
 ");
         let job = Job::new(script);
-        let o = self.post("jobs", job)?;
+        let o = self.post("jobs", job).await?;
 
         Ok(o)
     }
 
     /// Request server to add a new node for remote computation.
-    pub fn add_node(&self, node: impl Into<Node>) -> Result<()> {
-        self.post("nodes", node.into())?;
+    pub async fn add_node(&self, node: impl Into<Node>) -> Result<()> {
+        self.post("nodes", node.into()).await?;
         Ok(())
     }
 }

@@ -59,7 +59,7 @@ struct ClientRun {
 
 impl ClientCli {
     async fn enter_main(self) -> Result<()> {
-        use crate::client::Client;
+        use crate::Client;
         let scheduler_address = if let Some(a) = self.scheduler_address {
             a
         } else {
@@ -70,11 +70,11 @@ impl ClientCli {
         match self.action {
             ClientAction::Run(run) => {
                 let wrk_dir = run.wrk_dir.canonicalize()?;
-                let o = client.run_cmd(&run.cmd, &wrk_dir)?;
+                let o = client.run_cmd(&run.cmd, &wrk_dir).await?;
                 println!("{o}");
             }
             ClientAction::AddNode { node } => {
-                client.add_node(&node)?;
+                client.add_node(&node).await?;
             }
         }
 
@@ -175,7 +175,7 @@ impl BootstrapCli {
                 info!("install worker on {node}");
                 let o = read_scheduler_address_from_lock_file(&address_file, timeout)?;
                 // tell the scheduler add this worker
-                crate::client::Client::connect(o).add_node(&address)?;
+                crate::Client::connect(o).add_node(&address).await?;
                 ServerCli::run_as_worker(address).await?;
             }
         }

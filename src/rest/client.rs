@@ -5,6 +5,7 @@ use reqwest;
 
 // [[file:../../remote.note::d2c8de54][d2c8de54]]
 /// Client for remote execution
+#[derive(Debug, Clone)]
 pub struct Client {
     client: reqwest::Client,
     service_uri: String,
@@ -23,7 +24,8 @@ impl Client {
 
 // [[file:../../remote.note::743b32f9][743b32f9]]
 impl Client {
-    pub(super) async fn post(&self, end_point: &str, data: impl serde::Serialize) -> Result<String> {
+    /// Apply Post request
+    pub async fn post(&self, end_point: &str, data: impl serde::Serialize) -> Result<String> {
         let uri = format!("{}/{end_point}", self.service_uri);
         let resp = self.client.post(&uri).json(&data).send().await?.text().await?;
 

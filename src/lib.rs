@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 
 // [[file:../remote.note::b21b77b4][b21b77b4]]
 mod base;
-mod client;
+// mod client;
 mod interactive;
 mod scheduler;
 mod server;
@@ -64,6 +64,7 @@ fn test_addr() {
 // [[file:../remote.note::0a725e9c][0a725e9c]]
 pub use base::LockFile;
 
+pub use crate::rest::Client;
 pub use jobhub::JobHub;
 // 0a725e9c ends here
 

@@ -1,6 +1,6 @@
 // [[file:../remote.note::c67d342c][c67d342c]]
-use crate::client::Client;
 use crate::common::*;
+use crate::Client;
 use gut::rayon;
 
 use std::path::{Path, PathBuf};
@@ -64,18 +64,18 @@ impl JobHub {
         Ok(o)
     }
 
-    /// Run all scheduled jobs with nodes in pool.
-    pub fn run(&mut self) -> Result<()> {
-        self.job_results = self
-            .jobs
-            .par_iter()
-            .map(|(cmd, wrk_dir)| self.client.clone().run_cmd(&cmd, &wrk_dir))
-            .collect();
+    // /// Run all scheduled jobs with nodes in pool.
+    // pub fn run(&mut self) -> Result<()> {
+    //     self.job_results = self
+    //         .jobs
+    //         .par_iter()
+    //         .map(|(cmd, wrk_dir)| self.client.clone().run_cmd(&cmd, &wrk_dir))
+    //         .collect();
 
-        // clear pending jobs
-        self.jobs.clear();
+    //     // clear pending jobs
+    //     self.jobs.clear();
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 }
 // a3bb4770 ends here

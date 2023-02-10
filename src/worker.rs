@@ -67,7 +67,7 @@ mod handlers {
 // a2266f5f ends here
 
 // [[file:../remote.note::d6f1b9d7][d6f1b9d7]]
-use client::Client;
+use crate::Client;
 
 /// Submit job remotely using REST api service
 pub struct RemoteComputation {
@@ -78,7 +78,7 @@ pub struct RemoteComputation {
 impl RemoteComputation {
     pub async fn wait_for_output(&self) -> Result<String> {
         debug!("wait output for job {:?}", self.job);
-        let resp = self.client.post("jobs", &self.job)?;
+        let resp = self.client.post("jobs", &self.job).await?;
         Ok(resp)
     }
 }
