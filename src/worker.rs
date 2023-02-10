@@ -99,14 +99,25 @@ impl server::Server {
     /// Serve as a worker running on local node.
     pub async fn serve_as_worker_axum(addr: &str) -> Result<()> {
         use self::handlers::create_job;
+        use crate::rest::shutdown_signal;
         use axum::routing::post;
 
         println!("listening on {addr:?}");
         let server = Self::new(addr);
         let app = axum::Router::new().route("/jobs", post(create_job));
-        let x = axum::Server::bind(&server.address)
-            .serve(app.into_make_service())
-            .await?;
+
+        let signal = shutdown_signal();
+        let server = axum::Server::bind(&server.address).serve(app.into_make_service());
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        tokio::select! {
+            _ = server => {
+                eprintln!("server closed");
+            }
+            _ = signal => {
+                let _ = tx.send(());
+                eprintln!("user interruption");
+            }
+        }
 
         Ok(())
     }
