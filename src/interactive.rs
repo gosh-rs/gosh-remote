@@ -86,7 +86,7 @@ mod server {
         let name = job.name();
         info!("Request remote node {node:?} to compute job {name} ...");
         // FIXME: potentially deadlock
-        let comput = job.submit_remote_axum(node)?;
+        let comput = job.submit_remote(node)?;
         // if computation failed, we should tell the client to exit
         match comput.wait_for_output().await {
             Ok(out) => {

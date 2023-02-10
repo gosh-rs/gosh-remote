@@ -85,7 +85,7 @@ impl RemoteComputation {
 
 impl Job {
     /// Remote submission using RESTful service
-    pub fn submit_remote_axum(self, node: &Node) -> Result<RemoteComputation> {
+    pub fn submit_remote(self, node: &Node) -> Result<RemoteComputation> {
         let client = Client::connect(node);
         let comput = RemoteComputation { job: self, client };
 
@@ -97,7 +97,7 @@ impl Job {
 // [[file:../remote.note::9407c3be][9407c3be]]
 impl server::Server {
     /// Serve as a worker running on local node.
-    pub async fn serve_as_worker_axum(addr: &str) -> Result<()> {
+    pub async fn serve_as_worker(addr: &str) -> Result<()> {
         use self::handlers::create_job;
         use crate::rest::shutdown_signal;
         use axum::routing::post;

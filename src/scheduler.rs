@@ -10,7 +10,7 @@ use std::path::Path;
 
 impl Client {
     /// Request server to run `cmd` in directory `wrk_dir`.
-    pub fn run_cmd_axum(&self, cmd: &str, wrk_dir: &Path) -> Result<String> {
+    pub fn run_cmd(&self, cmd: &str, wrk_dir: &Path) -> Result<String> {
         let wrk_dir = wrk_dir.shell_escape_lossy();
         #[rustfmt::skip]
         let script = format!("#! /usr/bin/env bash
@@ -25,7 +25,7 @@ cd {wrk_dir}
     }
 
     /// Request server to add a new node for remote computation.
-    pub fn add_node_axum(&self, node: impl Into<Node>) -> Result<()> {
+    pub fn add_node(&self, node: impl Into<Node>) -> Result<()> {
         self.post("nodes", node.into())?;
         Ok(())
     }
@@ -81,7 +81,7 @@ use base::Nodes;
 use server::Server;
 
 impl Server {
-    pub async fn serve_as_scheduler_axum(addr: &str) {
+    pub async fn serve_as_scheduler(addr: &str) {
         println!("listening on {addr:?}");
         let (mut task_server, task_client) = crate::interactive::new_interactive_task();
         let nodes: Vec<String> = vec![];
