@@ -4,6 +4,10 @@ use super::*;
 use base::{Job, Node};
 // c07df478 ends here
 
+// [[file:../remote.note::b1a3ac5f][b1a3ac5f]]
+mod interactive;
+// b1a3ac5f ends here
+
 // [[file:../remote.note::6730a02b][6730a02b]]
 use crate::Client;
 use std::path::Path;
@@ -95,7 +99,7 @@ impl Server {
         println!("scheduler listening on {:?}", self.address);
 
         // the server side
-        let (mut task_server, task_client) = crate::interactive::new_interactive_task();
+        let (mut task_server, task_client) = self::interactive::new_interactive_task();
         let nodes: Vec<String> = vec![];
         let h1 = tokio::spawn(async move {
             if let Err(e) = task_server.run_and_serve(Nodes::new(nodes)).await {

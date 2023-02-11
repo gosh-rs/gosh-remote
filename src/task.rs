@@ -14,7 +14,7 @@
 //! let out2 = tx2.remote_compute("test input 2")?;
 //! 
 //! // server side
-//! if let Some(RemoteIO(input, tx_out)) = rx.recv() {
+//! if let Some(RemoteIO(input, tx_out)) = rx.recv().await {
 //!     // compute with job input
 //!     let output = compute_with(input)?;
 //!     // send job output to client side

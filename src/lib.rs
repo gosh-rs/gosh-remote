@@ -12,7 +12,6 @@ use std::path::{Path, PathBuf};
 // [[file:../remote.note::b21b77b4][b21b77b4]]
 mod base;
 mod client;
-mod interactive;
 mod model;
 mod rest;
 mod scheduler;
@@ -85,9 +84,9 @@ pub mod docs {
     }
 
     export_doc!(base);
-    export_doc!(interactive);
     export_doc!(worker);
     export_doc!(jobhub);
     export_doc!(rest);
+    export_doc!(task);
 }
 // 56d334b5 ends here

@@ -1,11 +1,13 @@
-// [[file:../remote.note::ae9e9435][ae9e9435]]
+// [[file:../../remote.note::ae9e9435][ae9e9435]]
+#![deny(warnings)]
+
 use super::*;
 use base::{Job, Node, Nodes};
 
 use tokio::sync::oneshot;
 // ae9e9435 ends here
 
-// [[file:../remote.note::e899191b][e899191b]]
+// [[file:../../remote.note::e899191b][e899191b]]
 #[derive(Debug)]
 struct Interaction(Job, oneshot::Sender<InteractionOutput>);
 
@@ -23,10 +25,10 @@ type RxControl = tokio::sync::mpsc::Receiver<Control>;
 type TxControl = tokio::sync::mpsc::Sender<Control>;
 // e899191b ends here
 
-// [[file:../remote.note::d88217da][d88217da]]
+// [[file:../../remote.note::d88217da][d88217da]]
 #[derive(Clone)]
 /// Manage client requests in threading environment
-pub struct TaskClient {
+pub(super) struct TaskClient {
     // for send client request for pause, resume, stop computation on server side
     tx_ctl: TxControl,
     // for interaction with child process on server side
@@ -37,6 +39,8 @@ mod client {
     use super::*;
 
     impl TaskClient {
+        /// Send `job` to target and wait for output. Return the
+        /// computed result.
         pub async fn interact(&mut self, job: Job) -> Result<String> {
             // FIXME: refactor
             let (tx_resp, rx_resp) = oneshot::channel();
@@ -64,8 +68,8 @@ mod client {
 }
 // d88217da ends here
 
-// [[file:../remote.note::7b4ac45b][7b4ac45b]]
-pub struct TaskServer {
+// [[file:../../remote.note::7b4ac45b][7b4ac45b]]
+pub(super) struct TaskServer {
     // for receiving interaction message for child process
     rx_int: Option<RxInteraction>,
     // for controlling child process
@@ -74,11 +78,13 @@ pub struct TaskServer {
 
 mod server {
     use super::*;
+    use crate::task::RemoteIO;
 
-    type Jobs = (Job, oneshot::Sender<String>);
-    type RxJobs = spmc::Receiver<Jobs>;
+    type RxJobs = spmc::Receiver<RemoteIO<Job, String>>;
+
+    /// compute job from `jobs` using `node`
     async fn handle_client_interaction(jobs: RxJobs, node: &Node) -> Result<()> {
-        let (job, tx_resp) = jobs.recv()?;
+        let RemoteIO(job, tx_resp) = jobs.recv()?;
         let name = job.name();
         info!("Request remote node {node:?} to compute job {name} ...");
         // FIXME: potentially deadlock
@@ -100,6 +106,7 @@ mod server {
         Ok(())
     }
 
+    /// ask a node from `nodes` to compute one job from `jobs`
     async fn borrow_node_and_compute(nodes: Nodes, jobs: RxJobs) {
         match nodes.borrow_node() {
             Ok(node) => {
@@ -143,7 +150,7 @@ mod server {
                     }
                     Some(int) = rx_int.recv() => {
                         let Interaction(job, tx_resp) = int;
-                        tx_jobs.send((job, tx_resp))?;
+                        tx_jobs.send(RemoteIO(job, tx_resp))?;
                     }
                     Some(ctl) = rx_ctl.recv() => {
                         match ctl {
@@ -169,10 +176,10 @@ mod server {
 }
 // 7b4ac45b ends here
 
-// [[file:../remote.note::8408786a][8408786a]]
+// [[file:../../remote.note::8408786a][8408786a]]
 /// Create task server and client. The client can be cloned and used in
 /// concurrent environment
-pub fn new_interactive_task() -> (TaskServer, TaskClient) {
+pub(super) fn new_interactive_task() -> (TaskServer, TaskClient) {
     let (tx_int, rx_int) = tokio::sync::mpsc::channel(1);
     let (tx_ctl, rx_ctl) = tokio::sync::mpsc::channel(1);
 

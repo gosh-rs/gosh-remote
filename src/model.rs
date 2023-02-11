@@ -11,7 +11,8 @@ use gosh_model::Computed;
 // 3d2c01c2 ends here
 
 // [[file:../remote.note::ccbf3ca9][ccbf3ca9]]
-type Task = crate::task::Task<Molecule, Computed>;
+use crate::task::Task;
+// type Task = crate::task::Task<Molecule, Computed>;
 type TaskReceiver = crate::task::TaskReceiver<Molecule, Computed>;
 type TxOutput = crate::task::TxOutput<Computed>;
 // ccbf3ca9 ends here
