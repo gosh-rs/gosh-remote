@@ -37,7 +37,7 @@ async fn compute_mol(State(client): State<TaskState>, Json(mol): Json<Molecule>)
 macro_rules! build_app_with_routes {
     ($state: expr) => {{
         use axum::routing::post;
-        axum::Router::new().route("/mol", post(compute_mol)).with_state($state)
+        axum::Router::new().route("/mols", post(compute_mol)).with_state($state)
     }};
 }
 // 59c3364a ends here
@@ -50,7 +50,7 @@ impl Client {
     /// Request remote server compute `mol` and return computed results.
     pub async fn compute_molecule(&self, mol: &Molecule) -> Result<Computed> {
         info!("Request server to compute molecule {}", mol.title());
-        let x = self.post("mol", &mol).await?;
+        let x = self.post("mols", &mol).await?;
         let mol = serde_json::from_str(&x).with_context(|| format!("invalid json str: {x:?}"))?;
         Ok(mol)
     }
