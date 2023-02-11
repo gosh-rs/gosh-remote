@@ -79,9 +79,9 @@ impl Client {
     /// Request remote server compute `mol` and return computed results.
     pub async fn compute_molecule(&self, mol: &Molecule) -> Result<Computed> {
         info!("Request server to compute molecule {}", mol.title());
-        let x = self.post("mols", mol).await?;
-        let mol = serde_json::from_str(&x).with_context(|| format!("invalid json str: {x:?}"))?;
-        Ok(mol)
+        let out = self.post("mols", mol).await?;
+        let comput = serde_json::from_str(&out).with_context(|| format!("invalid json str: {out:?}"))?;
+        Ok(comput)
     }
 }
 // 285a8db0 ends here

@@ -62,13 +62,20 @@ mod routes {
         Ok(())
     }
 
+    /// Handle request for adding a new mol
+    #[axum::debug_handler]
+    async fn add_mol(State(task): State<TaskClient>, Json(mol): Json<Molecule>) -> Result<Json<Computed>, AppError> {
+        let o = task.compute_molecule(mol).await?;
+        Ok(Json(o))
+    }
+
     /// Handle request for adding a new node into `Nodes`
     #[axum::debug_handler]
     async fn add_job(
-        State(mut task): State<TaskClient>,
+        State(task): State<TaskClient>,
         Json(job): Json<Job>,
     ) -> Result<Json<ComputationResult>, AppError> {
-        let r = task.interact(job).await?;
+        let r = task.run_cmd(job).await?;
         let c = ComputationResult::parse_from_json(&r)?;
         Ok(Json(c))
     }
@@ -78,6 +85,8 @@ mod routes {
 
         let app = axum::Router::new()
             .route("/jobs", post(add_job))
+            .with_state(state.clone())
+            .route("/mols", post(add_mol))
             .with_state(state.clone())
             .route("/nodes", post(add_node))
             .with_state(state);

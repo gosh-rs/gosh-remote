@@ -1,10 +1,10 @@
 // [[file:../../remote.note::ae9e9435][ae9e9435]]
-#![deny(warnings)]
+// #![deny(warnings)]
 
 use super::*;
 use crate::task::Task;
 
-use base::{Job, Node, Nodes};
+use base::{Node, Nodes};
 // ae9e9435 ends here
 
 // [[file:../../remote.note::55bd52fb][55bd52fb]]
@@ -17,11 +17,47 @@ enum Control {
     Abort,
 }
 
-type RxInteraction = TaskReceiver<Job, String>;
-type TxInteraction = TaskSender<Job, String>;
+// struct Jobx {}
+
+type RxInteraction = TaskReceiver<Jobx, String>;
+type TxInteraction = TaskSender<Jobx, String>;
 type RxControl = TaskReceiver<Control, ()>;
 type TxControl = TaskSender<Control, ()>;
 // 55bd52fb ends here
+
+// [[file:../../remote.note::3ce50110][3ce50110]]
+use crate::base::Job;
+use gchemol::Molecule;
+
+#[derive(Debug, Clone)]
+enum Jobx {
+    Job(Job),
+    Mol(Molecule),
+}
+
+impl Jobx {
+    fn job_name(&self) -> String {
+        match self {
+            Self::Job(job) => job.name(),
+            Self::Mol(mol) => mol.title(),
+        }
+    }
+
+    async fn run_on(self, node: &Node) -> Result<String> {
+        match self {
+            Self::Job(job) => {
+                let comput = job.submit_remote(node)?;
+                comput.wait_for_output().await
+            }
+            Self::Mol(mol) => {
+                let client = Client::connect(node);
+                let o = client.post("mols", mol).await?;
+                Ok(o)
+            }
+        }
+    }
+}
+// 3ce50110 ends here
 
 // [[file:../../remote.note::5a59464d][5a59464d]]
 #[derive(Clone)]
@@ -35,13 +71,23 @@ pub(super) struct TaskClient {
 
 mod client {
     use super::*;
+    use gosh_model::Computed;
 
     impl TaskClient {
         /// Send `job` to target and wait for output. Return the
         /// computed result.
-        pub async fn interact(&mut self, job: Job) -> Result<String> {
-            let out = self.tx_int.send(job).await?;
+        pub async fn run_cmd(&self, job: Job) -> Result<String> {
+            let out = self.tx_int.send(Jobx::Job(job)).await?;
             Ok(out)
+        }
+
+        /// Request to compute molecule
+        pub async fn compute_molecule(&self, mol: Molecule) -> Result<Computed> {
+            // FIXME: refactor required
+            info!("Request server to compute molecule {}", mol.title());
+            let out = self.tx_int.send(Jobx::Mol(mol)).await?;
+            let computed = serde_json::from_str(&out).with_context(|| format!("invalid json str: {out:?}"))?;
+            Ok(computed)
         }
 
         /// Add one remote node into list for computation
@@ -75,26 +121,25 @@ mod server {
     use super::*;
     use crate::task::RemoteIO;
 
-    type RxJobs = spmc::Receiver<RemoteIO<Job, String>>;
+    type RxJobs = spmc::Receiver<RemoteIO<Jobx, String>>;
 
     /// compute job from `jobs` using `node`
     async fn handle_client_interaction(jobs: RxJobs, node: &Node) -> Result<()> {
         let RemoteIO(job, tx_resp) = jobs.recv()?;
-        let name = job.name();
+        let name = job.job_name();
 
         info!("Request remote node {node:?} to compute job {name} ...");
         // FIXME: potentially deadlock
-        let comput = job.submit_remote(node)?;
         // if computation failed, we should tell the client to exit
-        match comput.wait_for_output().await {
+        match job.run_on(node).await {
             Ok(out) => {
-                info!("Job {name} completed, sending stdout to the client ...");
+                info!("Jobx {name} completed, sending stdout to the client ...");
                 if let Err(_) = tx_resp.send(out) {
                     error!("the client has been dropped");
                 }
             }
             Err(err) => {
-                let msg = format!("Job {name:?} failed with error: {err:?}");
+                let msg = format!("Jobx {name:?} failed with error: {err:?}");
                 tx_resp.send(msg).ok();
             }
         }
