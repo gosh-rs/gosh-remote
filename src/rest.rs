@@ -58,20 +58,28 @@ impl Server {
         }
     }
 
+    /// Serve as a computation server for chemical model.
+    pub async fn serve_as_chemical_model(&self, model: impl ChemicalModel + Send + 'static) -> Result<()> {
+        let addr = self.address;
+        println!("chemical model computation server listening on {addr:?}");
+
+        let (task_rx, task_tx) = Task::new().split();
+        let h1 = tokio::spawn(async move { Self::run_restful(addr, task_tx).await });
+        let h2 = tokio::spawn(async move { Self::serve_incoming_task_with(task_rx, model).await });
+        tokio::try_join!(h1, h2)?;
+        Ok(())
+    }
+
+    // FIXME: better name
     #[tokio::main]
     /// Enter point for command line usage.
     ///
     /// The server binding address will be wrote in `lock_file` available for
     /// client connections.
     pub async fn enter_main(lock_file: &Path, model: impl ChemicalModel + Send + 'static) -> Result<()> {
-        let addr = get_free_tcp_address().ok_or(format_err!("no free tcp addr"))?;
-        println!("listening on {addr:?}");
-        let _lock = LockFile::new(lock_file, addr);
-
-        let (task_rx, task_tx) = Task::new().split();
-        let h1 = tokio::spawn(async move { Self::run_restful(addr, task_tx).await });
-        let h2 = tokio::spawn(async move { Self::serve_incoming_task_with(task_rx, model).await });
-        tokio::try_join!(h1, h2)?;
+        let server = Self::try_bind_auto()?;
+        let _lock = LockFile::new(lock_file, server.address);
+        server.serve_as_chemical_model(model).await?;
         Ok(())
     }
 }
@@ -81,6 +89,6 @@ impl Server {
 pub use self::client::Client;
 
 /// A server for molecule computations allows interaction with RESTful web services.
-pub struct Server;
+pub use crate::server::Server;
 pub use self::server::shutdown_signal;
 // 908a93c5 ends here

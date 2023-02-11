@@ -32,7 +32,7 @@ cd {wrk_dir}
 
     #[tokio::main()]
     /// For non-async call
-    pub async fn run_cmd_block(&self, cmd: &str, wrk_dir: &Path) -> Result<String> {
+    pub(crate) async fn run_cmd_block(&self, cmd: &str, wrk_dir: &Path) -> Result<String> {
         let s = self.run_cmd(cmd, wrk_dir).await?;
         Ok(s)
     }

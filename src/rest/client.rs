@@ -25,7 +25,7 @@ impl Client {
 // [[file:../../remote.note::743b32f9][743b32f9]]
 impl Client {
     /// Apply Post request
-    pub async fn post(&self, end_point: &str, data: impl serde::Serialize) -> Result<String> {
+    pub(crate) async fn post(&self, end_point: &str, data: impl serde::Serialize) -> Result<String> {
         let uri = format!("{}/{end_point}", self.service_uri);
         let resp = self.client.post(&uri).json(&data).send().await?.text().await?;
 
