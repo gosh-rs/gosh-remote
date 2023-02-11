@@ -17,7 +17,6 @@ type TxOutput = task::TxOutput<Computed>;
 // ccbf3ca9 ends here
 
 // [[file:../remote.note::aa8d1d68][aa8d1d68]]
-mod client;
 pub(crate) mod server;
 // aa8d1d68 ends here
 
@@ -86,7 +85,7 @@ impl Server {
 // 389c909a ends here
 
 // [[file:../remote.note::908a93c5][908a93c5]]
-pub use self::client::Client;
+pub use crate::client::Client;
 
 /// A server for molecule computations allows interaction with RESTful web services.
 pub use crate::server::Server;

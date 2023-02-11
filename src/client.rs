@@ -1,9 +1,9 @@
-// [[file:../../remote.note::8bb618e6][8bb618e6]]
+// [[file:../remote.note::8bb618e6][8bb618e6]]
 use super::*;
 use reqwest;
 // 8bb618e6 ends here
 
-// [[file:../../remote.note::d2c8de54][d2c8de54]]
+// [[file:../remote.note::d2c8de54][d2c8de54]]
 /// Client for remote execution
 #[derive(Debug, Clone)]
 pub struct Client {
@@ -22,7 +22,7 @@ impl Client {
 }
 // d2c8de54 ends here
 
-// [[file:../../remote.note::743b32f9][743b32f9]]
+// [[file:../remote.note::743b32f9][743b32f9]]
 impl Client {
     /// Apply Post request
     pub(crate) async fn post(&self, end_point: &str, data: impl serde::Serialize) -> Result<String> {
