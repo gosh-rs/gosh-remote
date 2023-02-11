@@ -99,7 +99,7 @@ impl Server {
         });
         tokio::pin!(h1);
 
-        let server = Self::new(addr);
+        let server = Self::bind(addr);
         let tc = task_client.clone();
         let h2 = tokio::spawn(async move {
             self::routes::run_restful(server.address, tc).await;

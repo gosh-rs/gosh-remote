@@ -103,7 +103,7 @@ impl server::Server {
         use crate::rest::shutdown_signal;
 
         println!("listening on {addr:?}");
-        let server = Self::new(addr);
+        let server = Self::bind(addr);
         let signal = shutdown_signal();
         let server = axum::Server::bind(&server.address).serve(app().into_make_service());
         let (tx, rx) = tokio::sync::oneshot::channel();
