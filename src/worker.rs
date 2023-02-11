@@ -99,13 +99,14 @@ use axum::Router;
 
 impl server::Server {
     /// Serve as a worker running on local node.
-    pub async fn serve_as_worker(addr: &str) -> Result<()> {
+    pub async fn serve_as_worker(&self) -> Result<()> {
         use crate::rest::shutdown_signal;
 
+        let addr = self.address;
         println!("listening on {addr:?}");
-        let server = Self::bind(addr);
+
         let signal = shutdown_signal();
-        let server = axum::Server::bind(&server.address).serve(app().into_make_service());
+        let server = axum::Server::bind(&addr).serve(app().into_make_service());
         let (tx, rx) = tokio::sync::oneshot::channel();
         tokio::select! {
             _ = server => {

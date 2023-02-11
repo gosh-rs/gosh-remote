@@ -88,8 +88,10 @@ use base::Nodes;
 use server::Server;
 
 impl Server {
-    pub async fn serve_as_scheduler(addr: &str) {
-        println!("listening on {addr:?}");
+    /// Start a server as a scheduler for computational jobs.
+    pub async fn serve_as_scheduler(&self) {
+        println!("scheduler listening on {:?}", self.address);
+
         let (mut task_server, task_client) = crate::interactive::new_interactive_task();
         let nodes: Vec<String> = vec![];
         let h1 = tokio::spawn(async move {
@@ -99,15 +101,16 @@ impl Server {
         });
         tokio::pin!(h1);
 
-        let server = Self::bind(addr);
+        let address = self.address;
         let tc = task_client.clone();
         let h2 = tokio::spawn(async move {
-            self::routes::run_restful(server.address, tc).await;
+            self::routes::run_restful(address, tc).await;
         });
         tokio::pin!(h2);
 
         let h3 = tokio::signal::ctrl_c();
         tokio::pin!(h3);
+
         loop {
             tokio::select! {
                 _res = &mut h1 => {

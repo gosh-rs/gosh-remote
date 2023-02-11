@@ -108,14 +108,15 @@ struct ServerCli {
 impl ServerCli {
     async fn enter_main(self) -> Result<()> {
         let address = &self.address;
+        let server = Server::bind(address);
         match self.mode {
             ServerMode::AsScheduler => {
                 println!("Start scheduler serivce at {address:?}");
-                Server::serve_as_scheduler(address).await;
+                server.serve_as_scheduler().await;
             }
             ServerMode::AsWorker => {
                 println!("Start worker serivce at {address:?}");
-                Server::serve_as_worker(address).await?;
+                server.serve_as_worker().await?;
             }
         }
 
