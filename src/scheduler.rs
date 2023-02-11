@@ -92,6 +92,7 @@ impl Server {
     pub async fn serve_as_scheduler(&self) {
         println!("scheduler listening on {:?}", self.address);
 
+        // the server side
         let (mut task_server, task_client) = crate::interactive::new_interactive_task();
         let nodes: Vec<String> = vec![];
         let h1 = tokio::spawn(async move {
@@ -101,6 +102,7 @@ impl Server {
         });
         tokio::pin!(h1);
 
+        // the client side
         let address = self.address;
         let tc = task_client.clone();
         let h2 = tokio::spawn(async move {
@@ -108,7 +110,8 @@ impl Server {
         });
         tokio::pin!(h2);
 
-        let h3 = tokio::signal::ctrl_c();
+        // external interruption using unix/linux signal
+        let h3 = crate::rest::shutdown_signal();
         tokio::pin!(h3);
 
         loop {
