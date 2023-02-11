@@ -7,8 +7,6 @@ use std::path::{Path, PathBuf};
 // c67d342c ends here
 
 // [[file:../remote.note::a3bb4770][a3bb4770]]
-use gosh_model::Computed;
-
 /// A job hub for parallel running of multiple jobs over remote
 /// computational nodes
 pub struct JobHub {
@@ -16,6 +14,10 @@ pub struct JobHub {
     jobs: Vec<(String, PathBuf)>,
     job_results: Vec<Result<String>>,
 }
+// a3bb4770 ends here
+
+// [[file:../remote.note::8dbabe79][8dbabe79]]
+use gosh_model::Computed;
 
 impl JobHub {
     /// Create a job hub for background scheduler specified in
@@ -78,4 +80,4 @@ impl JobHub {
         Ok(())
     }
 }
-// a3bb4770 ends here
+// 8dbabe79 ends here
