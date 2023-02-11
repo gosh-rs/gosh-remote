@@ -120,7 +120,6 @@ impl ServerCli {
                 server.serve_as_scheduler().await;
             }
             ServerMode::AsWorker => {
-                println!("Start worker serivce at {address:?}");
                 server.serve_as_worker().await?;
             }
             ServerMode::AsChemicalModel => {

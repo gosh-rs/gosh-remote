@@ -35,7 +35,7 @@ impl ComputationResult {
 // [[file:../remote.note::a2266f5f][a2266f5f]]
 mod handlers {
     use super::*;
-    use crate::rest::server::AppError;
+    use crate::rest::AppError;
     use axum::Json;
 
     /// Run `job` locally and return stdout on success.
@@ -66,6 +66,17 @@ mod handlers {
 }
 // a2266f5f ends here
 
+// [[file:../remote.note::57eb060f][57eb060f]]
+use axum::Router;
+
+fn app() -> Router {
+    use self::handlers::create_job;
+    use axum::routing::post;
+
+    Router::new().route("/jobs", post(create_job))
+}
+// 57eb060f ends here
+
 // [[file:../remote.note::d6f1b9d7][d6f1b9d7]]
 use crate::Client;
 
@@ -95,37 +106,20 @@ impl Job {
 // d6f1b9d7 ends here
 
 // [[file:../remote.note::9407c3be][9407c3be]]
-use axum::Router;
-
 impl server::Server {
     /// Serve as a worker running on local node.
     pub async fn serve_as_worker(&self) -> Result<()> {
         use crate::rest::shutdown_signal;
 
         let addr = self.address;
-        println!("listening on {addr:?}");
+        println!("Start remote process serivce at {addr:?}");
 
         let signal = shutdown_signal();
-        let server = axum::Server::bind(&addr).serve(app().into_make_service());
-        let (tx, rx) = tokio::sync::oneshot::channel();
-        tokio::select! {
-            _ = server => {
-                eprintln!("server closed");
-            }
-            _ = signal => {
-                let _ = tx.send(());
-                eprintln!("user interruption");
-            }
-        }
+        let server = axum::Server::bind(&addr)
+            .serve(app().into_make_service())
+            .with_graceful_shutdown(shutdown_signal());
 
         Ok(())
     }
-}
-
-fn app() -> Router {
-    use self::handlers::create_job;
-    use axum::routing::post;
-
-    Router::new().route("/jobs", post(create_job))
 }
 // 9407c3be ends here

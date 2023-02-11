@@ -13,22 +13,25 @@ use std::path::{Path, PathBuf};
 mod base;
 mod client;
 mod interactive;
+mod model;
+mod rest;
 mod scheduler;
 mod server;
 mod worker;
 
 pub mod cli;
-pub mod rest;
 pub mod task;
 
 // experimental
 mod jobhub;
+// b21b77b4 ends here
 
+// [[file:../remote.note::5f427630][5f427630]]
 mod common {
     pub use gosh_core::gut::prelude::*;
     pub use gosh_core::*;
 }
-// b21b77b4 ends here
+// 5f427630 ends here
 
 // [[file:../remote.note::5c33a18a][5c33a18a]]
 /// Return system host name
@@ -64,7 +67,8 @@ fn test_addr() {
 // [[file:../remote.note::0a725e9c][0a725e9c]]
 pub use base::LockFile;
 
-pub use crate::rest::{Client, Server};
+pub use crate::client::Client;
+pub use crate::server::Server;
 pub use jobhub::JobHub;
 // 0a725e9c ends here
 

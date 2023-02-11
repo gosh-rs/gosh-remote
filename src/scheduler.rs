@@ -42,7 +42,7 @@ cd {wrk_dir}
 // [[file:../remote.note::dec20ace][dec20ace]]
 mod routes {
     use super::*;
-    use crate::rest::server::AppError;
+    use crate::rest::AppError;
     use crate::worker::ComputationResult;
     use interactive::TaskClient;
 
