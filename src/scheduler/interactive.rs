@@ -2,30 +2,28 @@
 #![deny(warnings)]
 
 use super::*;
-use base::{Job, Node, Nodes};
+use crate::task::Task;
 
-use tokio::sync::oneshot;
+use base::{Job, Node, Nodes};
 // ae9e9435 ends here
 
-// [[file:../../remote.note::e899191b][e899191b]]
-#[derive(Debug)]
-struct Interaction(Job, oneshot::Sender<InteractionOutput>);
+// [[file:../../remote.note::55bd52fb][55bd52fb]]
+use crate::task::{TaskReceiver, TaskSender};
 
-/// The message sent from client for controlling running job
+/// The message sent from client for control running job
 #[derive(Debug, Clone)]
 enum Control {
     AddNode(Node),
     Abort,
 }
 
-type InteractionOutput = String;
-type RxInteraction = tokio::sync::mpsc::Receiver<Interaction>;
-type TxInteraction = tokio::sync::mpsc::Sender<Interaction>;
-type RxControl = tokio::sync::mpsc::Receiver<Control>;
-type TxControl = tokio::sync::mpsc::Sender<Control>;
-// e899191b ends here
+type RxInteraction = TaskReceiver<Job, String>;
+type TxInteraction = TaskSender<Job, String>;
+type RxControl = TaskReceiver<Control, ()>;
+type TxControl = TaskSender<Control, ()>;
+// 55bd52fb ends here
 
-// [[file:../../remote.note::d88217da][d88217da]]
+// [[file:../../remote.note::5a59464d][5a59464d]]
 #[derive(Clone)]
 /// Manage client requests in threading environment
 pub(super) struct TaskClient {
@@ -42,10 +40,7 @@ mod client {
         /// Send `job` to target and wait for output. Return the
         /// computed result.
         pub async fn interact(&mut self, job: Job) -> Result<String> {
-            // FIXME: refactor
-            let (tx_resp, rx_resp) = oneshot::channel();
-            self.tx_int.send(Interaction(job, tx_resp)).await?;
-            let out = rx_resp.await?;
+            let out = self.tx_int.send(job).await?;
             Ok(out)
         }
 
@@ -66,9 +61,9 @@ mod client {
         }
     }
 }
-// d88217da ends here
+// 5a59464d ends here
 
-// [[file:../../remote.note::7b4ac45b][7b4ac45b]]
+// [[file:../../remote.note::062132e0][062132e0]]
 pub(super) struct TaskServer {
     // for receiving interaction message for child process
     rx_int: Option<RxInteraction>,
@@ -86,6 +81,7 @@ mod server {
     async fn handle_client_interaction(jobs: RxJobs, node: &Node) -> Result<()> {
         let RemoteIO(job, tx_resp) = jobs.recv()?;
         let name = job.name();
+
         info!("Request remote node {node:?} to compute job {name} ...");
         // FIXME: potentially deadlock
         let comput = job.submit_remote(node)?;
@@ -149,17 +145,16 @@ mod server {
                         log_dbg!();
                     }
                     Some(int) = rx_int.recv() => {
-                        let Interaction(job, tx_resp) = int;
-                        tx_jobs.send(RemoteIO(job, tx_resp))?;
+                        tx_jobs.send(int)?;
                     }
                     Some(ctl) = rx_ctl.recv() => {
                         match ctl {
-                            Control::AddNode(node) => {
+                            RemoteIO(Control::AddNode(node), _) => {
                                 info!("client asked to add a new remote node: {node:?}");
                                 let nodes = nodes.clone();
                                 nodes.return_node(node.into())?;
                             }
-                            Control::Abort => {
+                            RemoteIO(Control::Abort, _) => {
                                 join_handler.abort();
                                 break;
                             },
@@ -174,25 +169,22 @@ mod server {
         }
     }
 }
-// 7b4ac45b ends here
+// 062132e0 ends here
 
-// [[file:../../remote.note::8408786a][8408786a]]
+// [[file:../../remote.note::231ad4be][231ad4be]]
 /// Create task server and client. The client can be cloned and used in
 /// concurrent environment
 pub(super) fn new_interactive_task() -> (TaskServer, TaskClient) {
-    let (tx_int, rx_int) = tokio::sync::mpsc::channel(1);
-    let (tx_ctl, rx_ctl) = tokio::sync::mpsc::channel(1);
+    let (rx_int, tx_int) = Task::new().split();
+    let (rx_ctl, tx_ctl) = Task::new().split();
 
     let server = TaskServer {
         rx_int: rx_int.into(),
         rx_ctl: rx_ctl.into(),
     };
 
-    let client = TaskClient {
-        tx_int,
-        tx_ctl,
-    };
+    let client = TaskClient { tx_int, tx_ctl };
 
     (server, client)
 }
-// 8408786a ends here
+// 231ad4be ends here
