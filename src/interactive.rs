@@ -1,7 +1,3 @@
-// [[file:../remote.note::*docs][docs:1]]
-//! This mod is for VASP interactive calculations.
-// docs:1 ends here
-
 // [[file:../remote.note::ae9e9435][ae9e9435]]
 use super::*;
 use base::{Job, Node, Nodes};

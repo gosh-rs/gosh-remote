@@ -42,8 +42,10 @@ cd {wrk_dir}
 // [[file:../remote.note::dec20ace][dec20ace]]
 mod routes {
     use super::*;
+    use crate::gchemol::Molecule;
     use crate::rest::AppError;
     use crate::worker::ComputationResult;
+    use gosh_model::Computed;
     use interactive::TaskClient;
 
     use axum::extract::State;
