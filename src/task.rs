@@ -8,10 +8,10 @@
 //! let (rx, tx) = Task::new().split();
 //! 
 //! // client side
-//! tx1 = tx.clone();
-//! tx2 = tx.clone();
-//! let out1 = tx1.remote_compute("test input 1")?;
-//! let out2 = tx2.remote_compute("test input 2")?;
+//! tx_input1 = tx.clone();
+//! tx_input2 = tx.clone();
+//! let out1 = tx_input1.send("test input 1")?;
+//! let out2 = tx_input2.send("test input 2")?;
 //! 
 //! // server side
 //! if let Some(RemoteIO(input, tx_out)) = rx.recv().await {

@@ -5,7 +5,7 @@ use base::{Job, Node};
 // c07df478 ends here
 
 // [[file:../remote.note::b1a3ac5f][b1a3ac5f]]
-mod interactive;
+mod dispatch;
 // b1a3ac5f ends here
 
 // [[file:../remote.note::6730a02b][6730a02b]]
@@ -50,7 +50,7 @@ mod routes {
     use crate::rest::AppError;
     use crate::worker::ComputationResult;
     use gosh_model::Computed;
-    use interactive::TaskClient;
+    use dispatch::TaskClient;
 
     use axum::extract::State;
     use axum::Json;
@@ -98,6 +98,40 @@ mod routes {
 }
 // dec20ace ends here
 
+// [[file:../remote.note::3ce50110][3ce50110]]
+use gchemol::Molecule;
+
+/// Represent any input submited to remote node for computation.
+#[derive(Debug, Clone)]
+enum Jobx {
+    Job(Job),
+    Mol(Molecule),
+}
+
+impl Jobx {
+    fn job_name(&self) -> String {
+        match self {
+            Self::Job(job) => job.name(),
+            Self::Mol(mol) => mol.title(),
+        }
+    }
+
+    async fn run_on(self, node: &Node) -> Result<String> {
+        let client = Client::connect(node);
+        match self {
+            Self::Job(job) => {
+                let o = client.post("jobs", job).await?;
+                Ok(o)
+            }
+            Self::Mol(mol) => {
+                let o = client.post("mols", mol).await?;
+                Ok(o)
+            }
+        }
+    }
+}
+// 3ce50110 ends here
+
 // [[file:../remote.note::63fb876f][63fb876f]]
 use base::Nodes;
 use server::Server;
@@ -108,7 +142,7 @@ impl Server {
         println!("scheduler listening on {:?}", self.address);
 
         // the server side
-        let (mut task_server, task_client) = self::interactive::new_interactive_task();
+        let (mut task_server, task_client) = self::dispatch::new_interactive_task();
         let nodes: Vec<String> = vec![];
         let h1 = tokio::spawn(async move {
             if let Err(e) = task_server.run_and_serve(Nodes::new(nodes)).await {

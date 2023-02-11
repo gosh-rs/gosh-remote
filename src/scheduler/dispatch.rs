@@ -1,5 +1,5 @@
 // [[file:../../remote.note::ae9e9435][ae9e9435]]
-// #![deny(warnings)]
+#![deny(warnings)]
 
 use super::*;
 use crate::task::Task;
@@ -24,40 +24,6 @@ type TxInteraction = TaskSender<Jobx, String>;
 type RxControl = TaskReceiver<Control, ()>;
 type TxControl = TaskSender<Control, ()>;
 // 55bd52fb ends here
-
-// [[file:../../remote.note::3ce50110][3ce50110]]
-use crate::base::Job;
-use gchemol::Molecule;
-
-#[derive(Debug, Clone)]
-enum Jobx {
-    Job(Job),
-    Mol(Molecule),
-}
-
-impl Jobx {
-    fn job_name(&self) -> String {
-        match self {
-            Self::Job(job) => job.name(),
-            Self::Mol(mol) => mol.title(),
-        }
-    }
-
-    async fn run_on(self, node: &Node) -> Result<String> {
-        match self {
-            Self::Job(job) => {
-                let comput = job.submit_remote(node)?;
-                comput.wait_for_output().await
-            }
-            Self::Mol(mol) => {
-                let client = Client::connect(node);
-                let o = client.post("mols", mol).await?;
-                Ok(o)
-            }
-        }
-    }
-}
-// 3ce50110 ends here
 
 // [[file:../../remote.note::5a59464d][5a59464d]]
 #[derive(Clone)]
