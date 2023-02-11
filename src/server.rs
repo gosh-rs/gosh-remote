@@ -7,11 +7,13 @@ use std::net::{SocketAddr, ToSocketAddrs};
 // [[file:../remote.note::0b562a75][0b562a75]]
 use crate::get_free_tcp_address;
 
-/// Computation server.
+/// A server for molecule computations allows interaction with RESTful
+/// web services.
 pub struct Server {
     pub address: SocketAddr,
 }
 
+/// Construct `Server` struct
 impl Server {
     /// Create a `Server` binding to `addr`.
     pub fn bind(addr: impl ToSocketAddrs + Debug) -> Self {

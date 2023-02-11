@@ -87,7 +87,6 @@ impl Server {
 // [[file:../remote.note::908a93c5][908a93c5]]
 pub use crate::client::Client;
 
-/// A server for molecule computations allows interaction with RESTful web services.
 pub use crate::server::Server;
 pub use self::server::shutdown_signal;
 // 908a93c5 ends here
