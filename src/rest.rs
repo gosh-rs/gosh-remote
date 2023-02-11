@@ -69,8 +69,8 @@ impl Server {
         Ok(())
     }
 
-    // FIXME: better name
     #[tokio::main]
+    #[deprecated(note = "plan to be removed")]
     /// Enter point for command line usage.
     ///
     /// The server binding address will be wrote in `lock_file` available for
