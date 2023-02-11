@@ -1,7 +1,9 @@
 // [[file:../remote.note::c67d342c][c67d342c]]
 use crate::common::*;
 use crate::Client;
-use gut::rayon;
+
+use gchemol::Molecule;
+use gosh_model::Computed;
 
 use std::path::{Path, PathBuf};
 // c67d342c ends here
@@ -10,14 +12,17 @@ use std::path::{Path, PathBuf};
 /// A job hub for parallel running of multiple jobs over remote
 /// computational nodes
 pub struct JobHub {
+    // the client for sending requests
     client: Client,
-    jobs: Vec<(String, PathBuf)>,
-    job_results: Vec<Result<String>>,
+    // the molcules to be computed
+    jobs: Vec<Molecule>,
+    // the computed results
+    results: Vec<Result<Computed>>,
 }
 // a3bb4770 ends here
 
-// [[file:../remote.note::8dbabe79][8dbabe79]]
-use gosh_model::Computed;
+// [[file:../remote.note::b2b2f089][b2b2f089]]
+use gut::rayon;
 
 impl JobHub {
     /// Create a job hub for background scheduler specified in
@@ -27,7 +32,7 @@ impl JobHub {
         Self {
             client,
             jobs: vec![],
-            job_results: vec![],
+            results: vec![],
         }
     }
 
@@ -42,36 +47,24 @@ impl JobHub {
     //     rayon::ThreadPoolBuilder::new().num_threads(n).build_global()?;
     //     Ok(())
     // }
+}
+// b2b2f089 ends here
 
-    /// Add a new job into job hub for scheduling.
-    pub fn add_job(&mut self, cmd: String) -> usize {
-        self.jobs.push((cmd, ".".into()));
+// [[file:../remote.note::c3d41589][c3d41589]]
+impl JobHub {
+    /// Add a new mol into job hub for later computation. Return associated
+    /// jobid which can be used to retrive computation result.
+    pub fn add_job(&mut self, mol: Molecule) -> usize {
+        self.jobs.push(mol);
         self.jobs.len() - 1
-    }
-
-    /// Return raw output for job `jobid`.
-    pub fn get_job_out(&mut self, jobid: usize) -> Result<String> {
-        match self.job_results.get(jobid).unwrap() {
-            Err(e) => bail!("job {jobid} failed with error: {e:?}"),
-            Ok(r) => Ok(r.to_owned()),
-        }
-    }
-
-    /// Return `Computed` for job output for `jobid`.
-    pub fn get_computed_from_job_out(&mut self, jobid: usize) -> Result<Computed> {
-        use crate::worker::ComputationResult;
-
-        let s = self.get_job_out(jobid)?;
-        let o = ComputationResult::get_computed_from_str(&s)?;
-        Ok(o)
     }
 
     /// Run all scheduled jobs with nodes in pool.
     pub fn run(&mut self) -> Result<()> {
-        self.job_results = self
+        self.results = self
             .jobs
             .par_iter()
-            .map(|(cmd, wrk_dir)| self.client.clone().run_cmd_block(&cmd, &wrk_dir))
+            .map(|mol| self.client.compute_molecule(mol))
             .collect();
 
         // clear pending jobs
@@ -79,5 +72,13 @@ impl JobHub {
 
         Ok(())
     }
+
+    /// Return computed result for job `jobid`.
+    pub fn get_computed(&mut self, jobid: usize) -> Result<Computed> {
+        match self.results.get(jobid).unwrap() {
+            Err(e) => bail!("job {jobid} failed with error: {e:?}"),
+            Ok(r) => Ok(r.to_owned()),
+        }
+    }
 }
-// 8dbabe79 ends here
+// c3d41589 ends here
