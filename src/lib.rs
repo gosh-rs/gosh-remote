@@ -23,6 +23,7 @@ pub mod task;
 
 // experimental
 mod jobhub;
+mod scheduler2;
 // b21b77b4 ends here
 
 // [[file:../remote.note::5f427630][5f427630]]

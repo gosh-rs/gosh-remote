@@ -39,7 +39,7 @@ pub(self) async fn compute_mol(
     State(client): State<TaskState>,
     Json(mol): Json<Molecule>,
 ) -> Result<Json<Computed>, AppError> {
-    let computed = client.remote_compute(mol).await?;
+    let computed = client.send(mol).await?;
     Ok(Json(computed))
 }
 

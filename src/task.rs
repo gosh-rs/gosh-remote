@@ -63,8 +63,15 @@ pub struct TaskSender<I, O> {
 }
 
 impl<I: Debug, O: Debug + Send> TaskSender<I, O> {
+    #[deprecated(note = "use send instead")]
     /// Ask remote side compute with `input` and return the computed.
     pub async fn remote_compute(&self, input: impl Into<I>) -> Result<Computed<O>> {
+        let o = self.send(input).await?;
+        Ok(o)
+    }
+
+    /// Ask remote side compute with `input` and return the computed.
+    pub async fn send(&self, input: impl Into<I>) -> Result<Computed<O>> {
         let (tx, rx) = tokio::sync::oneshot::channel();
         self.tx_inp
             .as_ref()

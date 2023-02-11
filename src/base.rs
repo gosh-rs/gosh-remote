@@ -4,7 +4,7 @@ use super::*;
 
 // [[file:../remote.note::50e6ed5a][50e6ed5a]]
 /// Represents a computational job inputted by user.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default)]
 pub struct Job {
     // FIXME: remove pub
