@@ -26,9 +26,9 @@ impl Client {
 impl Client {
     /// Apply Post request
     pub(crate) async fn post(&self, end_point: &str, data: impl serde::Serialize) -> Result<String> {
+        trace!("post to {end_point:?}");
         let uri = format!("{}/{end_point}", self.service_uri);
         let resp = self.client.post(&uri).json(&data).send().await?.text().await?;
-
         Ok(resp)
     }
 }

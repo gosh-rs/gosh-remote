@@ -44,6 +44,10 @@ enum ClientAction {
         /// The node to be added into node list for remote computation.
         node: String,
     },
+    /// Request server to compute molecule from `mol_path`
+    Compute {
+        mol_path: PathBuf,
+    },
 }
 
 #[derive(StructOpt)]
@@ -75,6 +79,15 @@ impl ClientCli {
             }
             ClientAction::AddNode { node } => {
                 client.add_node(&node).await?;
+            }
+
+            ClientAction::Compute { mol_path } => {
+                use gchemol::prelude::*;
+                use gchemol::Molecule;
+
+                let mol = Molecule::from_file(&mol_path)?;
+                let o = client.compute_molecule(&mol).await?;
+                println!("{o}");
             }
         }
 

@@ -70,7 +70,7 @@ impl JobHub {
         self.results = self
             .jobs
             .par_iter()
-            .map(|mol| self.client.compute_molecule(mol))
+            .map(|mol| self.client.compute_molecule_blockly(mol))
             .collect();
 
         // clear pending jobs

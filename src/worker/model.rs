@@ -78,13 +78,19 @@ macro_rules! build_app_with_routes {
 use crate::client::Client;
 
 impl Client {
-    #[tokio::main]
     /// Request remote server compute `mol` and return computed results.
     pub async fn compute_molecule(&self, mol: &Molecule) -> Result<Computed> {
-        info!("Request server to compute molecule {}", mol.title());
+        info!("Request server to compute molecule {:?}", mol.title());
         let out = self.post("mols", mol).await?;
-        let comput = serde_json::from_str(&out).with_context(|| format!("invalid json str: {out:?}"))?;
-        Ok(comput)
+        let computed = serde_json::from_str(&out).with_context(|| format!("invalid json str: {out:?}"))?;
+        Ok(computed)
+    }
+
+    /// Request remote server compute `mol` and return computed results.
+    #[tokio::main]
+    pub async fn compute_molecule_blockly(&self, mol: &Molecule) -> Result<Computed> {
+        let computed = self.compute_molecule(mol).await?;
+        Ok(computed)
     }
 }
 // 285a8db0 ends here
