@@ -75,7 +75,8 @@ impl JobHub {
 
     /// Return computed result for job `jobid`.
     pub fn get_computed(&mut self, jobid: usize) -> Result<Computed> {
-        match self.results.get(jobid).unwrap() {
+        let computed = self.results.get(jobid).ok_or(anyhow!("no such job {jobid}"))?;
+        match computed {
             Err(e) => bail!("job {jobid} failed with error: {e:?}"),
             Ok(r) => Ok(r.to_owned()),
         }
