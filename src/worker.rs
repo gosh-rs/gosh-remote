@@ -3,6 +3,10 @@ use super::*;
 use base::{Job, Node};
 // 4b6cf6fa ends here
 
+// [[file:../remote.note::cfe8b623][cfe8b623]]
+mod model;
+// cfe8b623 ends here
+
 // [[file:../remote.note::0688d573][0688d573]]
 use gosh_model::Computed;
 

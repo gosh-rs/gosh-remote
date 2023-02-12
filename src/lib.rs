@@ -12,7 +12,6 @@ use std::path::{Path, PathBuf};
 // [[file:../remote.note::b21b77b4][b21b77b4]]
 mod base;
 mod client;
-mod model;
 mod rest;
 mod scheduler;
 mod server;

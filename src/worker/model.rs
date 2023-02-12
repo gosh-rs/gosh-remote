@@ -1,8 +1,8 @@
-// [[file:../remote.note::6d0794c1][6d0794c1]]
+// [[file:../../remote.note::6d0794c1][6d0794c1]]
 //! For remote computation of molecules with RESTful web services
 // 6d0794c1 ends here
 
-// [[file:../remote.note::3d2c01c2][3d2c01c2]]
+// [[file:../../remote.note::3d2c01c2][3d2c01c2]]
 #![deny(warnings)]
 
 use crate::common::*;
@@ -10,18 +10,18 @@ use gchemol::Molecule;
 use gosh_model::Computed;
 // 3d2c01c2 ends here
 
-// [[file:../remote.note::ccbf3ca9][ccbf3ca9]]
+// [[file:../../remote.note::ccbf3ca9][ccbf3ca9]]
 use crate::task::Task;
 // type Task = crate::task::Task<Molecule, Computed>;
 type TaskReceiver = crate::task::TaskReceiver<Molecule, Computed>;
 type TxOutput = crate::task::TxOutput<Computed>;
 // ccbf3ca9 ends here
 
-// [[file:../remote.note::ad35d99c][ad35d99c]]
+// [[file:../../remote.note::ad35d99c][ad35d99c]]
 type TaskState = crate::task::TaskSender<Molecule, Computed>;
 // ad35d99c ends here
 
-// [[file:../remote.note::7157f9ad][7157f9ad]]
+// [[file:../../remote.note::7157f9ad][7157f9ad]]
 use crate::rest::AppError;
 use axum::extract::State;
 use axum::Json;
@@ -62,7 +62,7 @@ pub(self) async fn serve_incoming_task_with(mut task: TaskReceiver, mut model: i
 }
 // 7157f9ad ends here
 
-// [[file:../remote.note::59c3364a][59c3364a]]
+// [[file:../../remote.note::59c3364a][59c3364a]]
 macro_rules! build_app_with_routes {
     ($state: expr) => {{
         use axum::routing::post;
@@ -71,7 +71,7 @@ macro_rules! build_app_with_routes {
 }
 // 59c3364a ends here
 
-// [[file:../remote.note::285a8db0][285a8db0]]
+// [[file:../../remote.note::285a8db0][285a8db0]]
 use crate::client::Client;
 
 impl Client {
@@ -86,7 +86,7 @@ impl Client {
 }
 // 285a8db0 ends here
 
-// [[file:../remote.note::389c909a][389c909a]]
+// [[file:../../remote.note::389c909a][389c909a]]
 use crate::Server;
 use std::net::SocketAddr;
 
@@ -110,7 +110,7 @@ pub(self) async fn serve_mol_comput_requests(addr: impl Into<SocketAddr>, state:
 }
 // 389c909a ends here
 
-// [[file:../remote.note::f4a1566d][f4a1566d]]
+// [[file:../../remote.note::f4a1566d][f4a1566d]]
 impl Server {
     /// Serve as a computation server for chemical model.
     pub async fn serve_as_chemical_model(&self, model: impl ChemicalModel + Send + 'static) -> Result<()> {

@@ -59,7 +59,13 @@ impl JobHub {
         self.jobs.len() - 1
     }
 
-    /// Run all scheduled jobs with nodes in pool.
+    /// Return the numbrer of pending jobs.
+    pub fn njobs(&self) -> usize {
+        self.jobs.len()
+    }
+
+    /// Run all scheduled jobs with nodes in pool. Call this method
+    /// will overwrite computed results and clear pending jobs.
     pub fn run(&mut self) -> Result<()> {
         self.results = self
             .jobs
