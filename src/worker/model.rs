@@ -35,7 +35,7 @@ fn compute_mol_and_send_out(mol: &Molecule, model: &mut impl ChemicalModel, tx: 
 
 #[axum::debug_handler]
 /// Handle compute molecule request from client side
-pub(self) async fn compute_mol(
+pub async fn compute_mol(
     State(client): State<TaskState>,
     Json(mol): Json<Molecule>,
 ) -> Result<Json<Computed>, AppError> {
@@ -66,7 +66,10 @@ pub(self) async fn serve_incoming_task_with(mut task: TaskReceiver, mut model: i
 macro_rules! build_app_with_routes {
     ($state: expr) => {{
         use axum::routing::post;
-        axum::Router::new().route("/mols", post(compute_mol)).with_state($state)
+        axum::Router::new()
+            .route("/mols", post(compute_mol))
+            .with_state($state)
+            .route("/jobs", post(super::create_job))
     }};
 }
 // 59c3364a ends here

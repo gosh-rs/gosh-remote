@@ -71,10 +71,10 @@ mod handlers {
 // a2266f5f ends here
 
 // [[file:../remote.note::57eb060f][57eb060f]]
+use self::handlers::create_job;
 use axum::Router;
 
 fn app() -> Router {
-    use self::handlers::create_job;
     use axum::routing::post;
 
     Router::new().route("/jobs", post(create_job))

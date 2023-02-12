@@ -91,7 +91,6 @@ use server::Server;
 enum ServerMode {
     AsScheduler,
     AsWorker,
-    AsChemicalModel,
 }
 
 /// The server side for running program concurrently distributed over multiple remote nodes
@@ -105,7 +104,9 @@ struct ServerCli {
     #[arg(value_enum)]
     mode: ServerMode,
 
-    /// The block box model template directory.
+    /// The block box model template directory. Setting this argument
+    /// will enable remote computation service for molecule, beyond
+    /// run simple command line.
     #[arg(short = 't')]
     bbm_dir: Option<PathBuf>,
 }
@@ -120,28 +121,18 @@ impl ServerCli {
                 server.serve_as_scheduler().await;
             }
             ServerMode::AsWorker => {
-                server.serve_as_worker().await?;
-            }
-            ServerMode::AsChemicalModel => {
-                use gosh_model::BlackBoxModel;
+                if let Some(bbm_dir) = self.bbm_dir {
+                    use gosh_model::BlackBoxModel;
 
-                println!("Start chemical model serivce at {address:?}");
-                let bbm_dir = self.bbm_dir.unwrap();
-                let bbm = BlackBoxModel::from_dir(bbm_dir)?;
-                server.serve_as_chemical_model(bbm).await?;
+                    println!("Start chemical model serivce at {address:?}");
+                    let bbm = BlackBoxModel::from_dir(bbm_dir)?;
+                    server.serve_as_chemical_model(bbm).await?;
+                } else {
+                    server.serve_as_worker().await?;
+                }
             }
         }
 
-        Ok(())
-    }
-
-    async fn run_as_model(address: String, bbm_dir: Option<PathBuf>) -> Result<()> {
-        let server = ServerCli {
-            address: address,
-            mode: ServerMode::AsChemicalModel,
-            bbm_dir,
-        };
-        server.enter_main().await?;
         Ok(())
     }
 
@@ -160,6 +151,16 @@ impl ServerCli {
             address: address,
             mode: ServerMode::AsWorker,
             bbm_dir: None,
+        };
+        server.enter_main().await?;
+        Ok(())
+    }
+
+    async fn run_as_model(address: String, bbm_dir: PathBuf) -> Result<()> {
+        let server = ServerCli {
+            address: address,
+            mode: ServerMode::AsWorker,
+            bbm_dir: bbm_dir.into(),
         };
         server.enter_main().await?;
         Ok(())
@@ -207,15 +208,11 @@ impl BootstrapCli {
                 let o = read_scheduler_address_from_lock_file(&address_file, timeout)?;
                 // tell the scheduler add this worker
                 crate::Client::connect(o).add_node(&address).await?;
-                ServerCli::run_as_worker(address).await?;
-            }
-            ServerMode::AsChemicalModel => {
-                info!("install bbm on {node}");
-                ensure!(bbm_dir.is_some(), "bbm template directory required for this mode.");
-                let o = read_scheduler_address_from_lock_file(&address_file, timeout)?;
-                // tell the scheduler add this bbm worker
-                crate::Client::connect(o).add_node(&address).await?;
-                ServerCli::run_as_model(address, bbm_dir).await?;
+                if let Some(bbm_dir) = bbm_dir {
+                    ServerCli::run_as_model(address, bbm_dir).await?;
+                } else {
+                    ServerCli::run_as_worker(address).await?;
+                }
             }
         }
         Ok(())
