@@ -138,7 +138,7 @@ impl ServerCli {
     async fn run_as_model(address: String, bbm_dir: Option<PathBuf>) -> Result<()> {
         let server = ServerCli {
             address: address,
-            mode: ServerMode::AsScheduler,
+            mode: ServerMode::AsChemicalModel,
             bbm_dir,
         };
         server.enter_main().await?;
@@ -211,6 +211,7 @@ impl BootstrapCli {
             }
             ServerMode::AsChemicalModel => {
                 info!("install bbm on {node}");
+                ensure!(bbm_dir.is_some(), "bbm template directory required for this mode.");
                 let o = read_scheduler_address_from_lock_file(&address_file, timeout)?;
                 // tell the scheduler add this bbm worker
                 crate::Client::connect(o).add_node(&address).await?;
