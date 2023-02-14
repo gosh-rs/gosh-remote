@@ -117,11 +117,23 @@ impl server::Server {
 
         let addr = self.address;
         println!("Start remote process serivce at {addr:?}");
-
         let signal = shutdown_signal();
-        let server = axum::Server::bind(&addr)
-            .serve(app().into_make_service())
-            .with_graceful_shutdown(shutdown_signal());
+        let server = axum::Server::bind(&addr).serve(app().into_make_service());
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        tokio::select! {
+            _ = server => {
+                eprintln!("server closed");
+            }
+            _ = signal => {
+                let _ = tx.send(());
+                eprintln!("user interruption");
+            }
+        }
+
+        // FIXME: the below will cause immediate exit
+        // let server = axum::Server::bind(&addr)
+        //     .serve(app().into_make_service())
+        //     .with_graceful_shutdown(shutdown_signal());
 
         Ok(())
     }
